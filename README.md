@@ -9,6 +9,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - One-tap logging of 8, 12, 16 or 20 oz, plus a custom amount
 - Daily goal in ounces (64 oz by default, change it in Settings) with a progress ring
 - Undo from the snackbar, or remove any entry from today's list
+- **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 a- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
@@ -79,6 +80,7 @@ app/src/main/java/dev/ericferguson/watertracker/
     ├── SettingsViewModel.kt Saves settings, then reschedules the alarm
     ├── SettingsScreen.kt    Goal, reminders switch (with notification permission), wake/bed time pickers
     ├── AmountDialog.kt      Number-of-ounces dialog shared by Today and Settings
+    ├── GoalCelebration.kt   Ring bounce and droplet splash when you reach your goal
     └── theme/Theme.kt       Water-blue Material 3 color scheme
 ```
 
@@ -118,7 +120,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 Unit tests are in `app/src/test`:
 
 - `DayRangeTest` checks day boundaries, including the 23-hour and 25-hour days when daylight saving time starts and ends.
-- `TodayUiStateTest` checks the totals and progress calculation, including going over the goal and a goal of zero.
+- `TodayUiStateTest` checks the totals and progress calculation (including going over the goal and a goal of zero), and when a drink counts as reaching the goal.
 - `DailyTotalTest` checks grouping drinks by local day, including empty days and time zones.
 - `HistoryUiStateTest` checks the average (which leaves out today and days with nothing logged) and the goal-met count.
 - `PaceTest` checks the pace target, the 10% threshold, and staying quiet outside waking hours or after reaching the goal.

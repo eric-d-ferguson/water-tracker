@@ -25,6 +25,9 @@ data class TodayUiState(
 ) {
     val totalOz: Int get() = drinks.sumOf { it.amountOz }
     val progress: Float get() = if (goalOz > 0) totalOz.toFloat() / goalOz else 0f
+
+    /** True if adding [oz] takes the total from under the goal to at or over it. */
+    fun reachesGoalWith(oz: Int): Boolean = totalOz < goalOz && totalOz + oz >= goalOz
 }
 
 class TodayViewModel(

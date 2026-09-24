@@ -2,6 +2,8 @@ package dev.ericferguson.watertracker.ui
 
 import dev.ericferguson.watertracker.data.Drink
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TodayUiStateTest {
@@ -27,5 +29,21 @@ class TodayUiStateTest {
     @Test
     fun zeroGoalDoesNotDivideByZero() {
         assertEquals(0f, TodayUiState(drinks(8), goalOz = 0).progress)
+    }
+
+    @Test
+    fun reachesGoalWhenADrinkCrossesIt() {
+        assertTrue(TodayUiState(drinks(40, 16), goalOz = 64).reachesGoalWith(8))
+        assertTrue(TodayUiState(drinks(60), goalOz = 64).reachesGoalWith(20))
+    }
+
+    @Test
+    fun doesNotReachGoalWhenStillShort() {
+        assertFalse(TodayUiState(drinks(40), goalOz = 64).reachesGoalWith(8))
+    }
+
+    @Test
+    fun doesNotCelebrateAgainOnceGoalIsMet() {
+        assertFalse(TodayUiState(drinks(64), goalOz = 64).reachesGoalWith(8))
     }
 }

@@ -38,6 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +58,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 private val QUICK_ADD_OZ = listOf(8, 12, 16, 20)
+private val RING_SIZE = 220.dp
+private val RING_STROKE = 20.dp
 private val DRINK_RANGE = 1..128
 
 /** Stateful entry point: wires the ViewModel to the stateless [TodayContent]. */
@@ -65,6 +70,8 @@ fun TodayScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val celebration = rememberGoalCelebrationState()
+    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
     LifecycleResumeEffect(Unit) {
@@ -75,13 +82,19 @@ fun TodayScreen(
     TodayContent(
         state = state,
         snackbarHostState = snackbarHostState,
+        celebration = celebration,
         onAdd = { oz ->
+            val reachesGoal = state.reachesGoalWith(oz)
             scope.launch {
                 val id = viewModel.addDrink(oz)
+                if (reachesGoal) {
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    launch { celebration.play() }
+                }
                 // Replace any snackbar still showing instead of queueing behind it.
                 snackbarHostState.currentSnackbarData?.dismiss()
                 val result = snackbarHostState.showSnackbar(
-                    message = "Added $oz oz",
+                    message = if (reachesGoal) "Added $oz oz · Goal reached!" else "Added $oz oz",
                     actionLabel = "Undo",
                     duration = SnackbarDuration.Short,
                 )
@@ -98,6 +111,7 @@ fun TodayScreen(
 fun TodayContent(
     state: TodayUiState,
     snackbarHostState: SnackbarHostState,
+    celebration: GoalCelebrationState,
     onAdd: (Int) -> Unit,
     onRemove: (Long) -> Unit,
     onOpenSettings: () -> Unit,
@@ -132,9 +146,10 @@ fun TodayContent(
                     progress = state.progress,
                     totalOz = state.totalOz,
                     goalOz = state.goalOz,
+                    celebration = celebration,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 16.dp),
+                        .padding(vertical = 24.dp),
                 )
             }
             item {
@@ -176,26 +191,42 @@ fun TodayContent(
 }
 
 @Composable
-private fun ProgressRing(progress: Float, totalOz: Int, goalOz: Int, modifier: Modifier = Modifier) {
+private fun ProgressRing(
+    progress: Float,
+    totalOz: Int,
+    goalOz: Int,
+    celebration: GoalCelebrationState,
+    modifier: Modifier = Modifier,
+) {
     // The ring stops at full, but the number keeps counting past the goal.
     val animated by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), label = "progress")
     val trackColor = MaterialTheme.colorScheme.primaryContainer
     val fillColor = MaterialTheme.colorScheme.primary
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(220.dp)) {
-            val stroke = Stroke(width = 20.dp.toPx(), cap = StrokeCap.Round)
-            drawArc(color = trackColor, startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
-            drawArc(color = fillColor, startAngle = -90f, sweepAngle = 360f * animated, useCenter = false, style = stroke)
+        Box(
+            contentAlignment = Alignment.Center,
+            // Scaling in the layer lets the bounce redraw each frame without recomposing.
+            modifier = Modifier.graphicsLayer {
+                scaleX = celebration.pulse.value
+                scaleY = celebration.pulse.value
+            },
+        ) {
+            Canvas(modifier = Modifier.size(RING_SIZE)) {
+                val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
+                drawArc(color = trackColor, startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
+                drawArc(color = fillColor, startAngle = -90f, sweepAngle = 360f * animated, useCenter = false, style = stroke)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("$totalOz oz", style = MaterialTheme.typography.displayMedium)
+                Text(
+                    text = if (totalOz >= goalOz) "Goal reached!" else "of $goalOz oz",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$totalOz oz", style = MaterialTheme.typography.displayMedium)
-            Text(
-                text = if (totalOz >= goalOz) "Goal reached!" else "of $goalOz oz",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        GoalSplash(state = celebration, ringStroke = RING_STROKE, modifier = Modifier.size(RING_SIZE))
     }
 }
 
@@ -249,6 +280,7 @@ private fun TodayContentPreview() {
                 goalOz = 64,
             ),
             snackbarHostState = remember { SnackbarHostState() },
+            celebration = rememberGoalCelebrationState(),
             onAdd = {},
             onRemove = {},
             onOpenSettings = {},
