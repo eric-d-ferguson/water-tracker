@@ -1,0 +1,4 @@
+<resources>
+    <!-- Only used before Compose draws; the real theme is in ui/theme/Theme.kt. -->
+    <style name="Theme.WaterTracker" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
