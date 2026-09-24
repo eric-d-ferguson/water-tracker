@@ -7,19 +7,36 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 ## Features
 
 - One-tap logging of 8, 12, 16 or 20 oz, plus a custom amount
-- Daily goal in ounces (64 oz by default) with a progress ring
+- Daily goal in ounces (64 oz by default, change it in Settings) with a progress ring
 - Undo from the snackbar, or remove any entry from today's list
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 a- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
+- **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
 ### Roadmap
 
 - [x] History: last 7 and 30 days
-- [ ] Reminder notifications at a set interval, only during waking hours
+- [x] Pace reminders during waking hours
 - [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) (and see whether Garmin Connect picks them up)
 - [ ] CSV export
 - [ ] Home-screen widget
+
+## How reminders work
+
+Turn on **Pace reminders** in Settings (the gear icon on Today) and set your wake-up time and bedtime.
+
+- **Pace:** your target climbs in a straight line from 0 oz at wake-up to your full goal **an hour before bedtime**. With 7 AM–10 PM and an 80 oz goal, you should be at 40 oz by 2 PM.
+- **Checks** happen every 2 hours after wake-up, and none at or after bedtime. For 7 AM–10 PM that's 9, 11, 1, 3, 5, 7 and 9.
+- **You get a reminder** only if you're behind pace by **at least 10% of your goal** (8 oz for an 80 oz goal). A new reminder replaces an unread one.
+- **Reminders stop for the day** once you reach your goal.
+
+Behind the scenes there's one `AlarmManager` alarm at a time, set for the next check. When it fires, `ReminderReceiver` checks your pace, notifies you if needed, and sets the next alarm. The alarm is also re-set after a reboot, an app update, a clock or time-zone change, and every time the app starts.
+
+**Limitations**
+
+- Bedtime must be before midnight and at least 3 hours after wake-up.
+- Alarms are inexact (a 10-minute window) and don't need the "Alarms & reminders" permission. If the phone is in deep Doze (idle, screen off, not moving), Android can hold a reminder until its next maintenance window.
 
 ## Tech stack
 
@@ -39,7 +56,7 @@ The app has a single screen and a small, layered structure. It doesn't use a DI 
 ```
 app/src/main/java/dev/ericferguson/watertracker/
 ├── MainActivity.kt          Hosts the Compose UI
-├── WaterTrackerApp.kt       Application class that holds the repositories
+├── WaterTrackerApp.kt       Application class: repositories, notification channel, reschedule on start
 ├── data/
 │   ├── Drink.kt             Room entity: id, amountOz, timestampMillis
 │   ├── DrinkDao.kt          Queries; observeBetween() returns a Flow that re-emits on every change
@@ -47,13 +64,21 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── DrinkRepository.kt   Converts "a date" into a millisecond range and calls the DAO
 │   ├── DayRange.kt          Start and end of a local calendar day (handles DST)
 │   ├── DailyTotal.kt        Groups drinks into per-day totals, filling in 0 for empty days
-│   └── SettingsRepository.kt  Daily goal, stored in DataStore
+│   └── SettingsRepository.kt  Goal and reminder settings, stored in DataStore
+├── reminders/
+│   ├── Pace.kt              Target-by-now math and the 10%-behind rule
+│   ├── ReminderSchedule.kt  Check times and the next check after a given time
+│   ├── ReminderManager.kt   Sets and cancels the alarm; posts the notification
+│   └── ReminderReceiver.kt  Handles the alarm, boot, app update and time changes
 └── ui/
     ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>
     ├── TodayScreen.kt       Stateful TodayScreen that wraps the stateless TodayContent (which has a preview)
     ├── HistoryViewModel.kt  Daily totals for the selected period, plus the average and goal-met stats
     ├── HistoryScreen.kt     Period toggle, stat cards, Canvas bar chart and day list
+    ├── SettingsViewModel.kt Saves settings, then reschedules the alarm
+    ├── SettingsScreen.kt    Goal, reminders switch (with notification permission), wake/bed time pickers
+    ├── AmountDialog.kt      Number-of-ounces dialog shared by Today and Settings
     └── theme/Theme.kt       Water-blue Material 3 color scheme
 ```
 
@@ -96,6 +121,22 @@ Unit tests are in `app/src/test`:
 - `TodayUiStateTest` checks the totals and progress calculation, including going over the goal and a goal of zero.
 - `DailyTotalTest` checks grouping drinks by local day, including empty days and time zones.
 - `HistoryUiStateTest` checks the average (which leaves out today and days with nothing logged) and the goal-met count.
+- `PaceTest` checks the pace target, the 10% threshold, and staying quiet outside waking hours or after reaching the goal.
+- `ReminderScheduleTest` checks the check times, the next check across midnight, and waking-hours validation.
+
+### Testing reminders
+
+In **debug builds only**, the reminder receiver is exported (see `app/src/debug/AndroidManifest.xml`), so you can run a pace check right away instead of waiting for the alarm:
+
+```bash
+adb shell am broadcast -n dev.ericferguson.watertracker/.reminders.ReminderReceiver -a dev.ericferguson.watertracker.action.CHECK_PACE
+```
+
+To see the scheduled alarm:
+
+```bash
+adb shell dumpsys alarm | grep -A2 CHECK_PACE
+```
 
 ### Known limitation
 

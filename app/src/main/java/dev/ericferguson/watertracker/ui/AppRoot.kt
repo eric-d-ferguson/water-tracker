@@ -26,12 +26,20 @@ private enum class Tab(val label: String, @param:DrawableRes val icon: Int) {
 }
 
 /**
- * Bottom-bar navigation between the two screens. With only two tabs a saved enum is simpler
- * than a navigation library; each screen draws its own top bar.
+ * Bottom-bar navigation between the two tabs, with Settings shown full screen on top.
+ * With this few screens, saved state is simpler than a navigation library; each screen
+ * draws its own top bar.
  */
 @Composable
 fun AppRoot() {
     var tab by rememberSaveable { mutableStateOf(Tab.TODAY) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+
+    if (showSettings) {
+        BackHandler { showSettings = false }
+        SettingsScreen(onBack = { showSettings = false })
+        return
+    }
 
     // Back from History returns to Today instead of closing the app.
     BackHandler(enabled = tab != Tab.TODAY) { tab = Tab.TODAY }
@@ -54,7 +62,7 @@ fun AppRoot() {
     ) { padding ->
         Box(modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             when (tab) {
-                Tab.TODAY -> TodayScreen()
+                Tab.TODAY -> TodayScreen(onOpenSettings = { showSettings = true })
                 Tab.HISTORY -> HistoryScreen()
             }
         }

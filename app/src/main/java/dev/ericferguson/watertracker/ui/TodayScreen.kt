@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -24,14 +22,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -61,11 +56,13 @@ import java.time.format.FormatStyle
 
 private val QUICK_ADD_OZ = listOf(8, 12, 16, 20)
 private val DRINK_RANGE = 1..128
-private val GOAL_RANGE = 1..999
 
 /** Stateful entry point: wires the ViewModel to the stateless [TodayContent]. */
 @Composable
-fun TodayScreen(viewModel: TodayViewModel = viewModel(factory = TodayViewModel.Factory)) {
+fun TodayScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: TodayViewModel = viewModel(factory = TodayViewModel.Factory),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -92,7 +89,7 @@ fun TodayScreen(viewModel: TodayViewModel = viewModel(factory = TodayViewModel.F
             }
         },
         onRemove = viewModel::removeDrink,
-        onSetGoal = viewModel::setGoal,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -103,17 +100,18 @@ fun TodayContent(
     snackbarHostState: SnackbarHostState,
     onAdd: (Int) -> Unit,
     onRemove: (Long) -> Unit,
-    onSetGoal: (Int) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var showCustomDialog by rememberSaveable { mutableStateOf(false) }
-    var showGoalDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Water") },
                 actions = {
-                    TextButton(onClick = { showGoalDialog = true }) { Text("Goal") }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
+                    }
                 },
             )
         },
@@ -173,16 +171,6 @@ fun TodayContent(
             confirmLabel = "Add",
             onConfirm = { onAdd(it); showCustomDialog = false },
             onDismiss = { showCustomDialog = false },
-        )
-    }
-    if (showGoalDialog) {
-        AmountDialog(
-            title = "Daily goal",
-            initialValue = state.goalOz.toString(),
-            range = GOAL_RANGE,
-            confirmLabel = "Save",
-            onConfirm = { onSetGoal(it); showGoalDialog = false },
-            onDismiss = { showGoalDialog = false },
         )
     }
 }
@@ -247,43 +235,6 @@ private fun DrinkRow(drink: Drink, onRemove: () -> Unit) {
     )
 }
 
-@Composable
-private fun AmountDialog(
-    title: String,
-    initialValue: String,
-    range: IntRange,
-    confirmLabel: String,
-    onConfirm: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var text by rememberSaveable { mutableStateOf(initialValue) }
-    val amount = text.toIntOrNull()?.takeIf { it in range }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { input -> text = input.filter(Char::isDigit).take(3) },
-                suffix = { Text("oz") },
-                singleLine = true,
-                isError = text.isNotEmpty() && amount == null,
-                supportingText = { Text("${range.first}–${range.last} oz") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { amount?.let(onConfirm) }, enabled = amount != null) {
-                Text(confirmLabel)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun TodayContentPreview() {
@@ -300,7 +251,7 @@ private fun TodayContentPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onAdd = {},
             onRemove = {},
-            onSetGoal = {},
+            onOpenSettings = {},
         )
     }
 }

@@ -54,10 +54,6 @@ class TodayViewModel(
         viewModelScope.launch { drinkRepository.remove(id) }
     }
 
-    fun setGoal(oz: Int) {
-        viewModelScope.launch { settingsRepository.setDailyGoalOz(oz) }
-    }
-
     companion object {
         val Factory = viewModelFactory {
             initializer {
