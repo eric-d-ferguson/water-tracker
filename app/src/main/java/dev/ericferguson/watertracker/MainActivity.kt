@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import dev.ericferguson.watertracker.ui.TodayScreen
+import dev.ericferguson.watertracker.ui.AppRoot
 import dev.ericferguson.watertracker.ui.theme.WaterTrackerTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WaterTrackerTheme {
-                TodayScreen()
+                AppRoot()
             }
         }
     }

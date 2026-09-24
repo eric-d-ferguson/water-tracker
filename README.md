@@ -10,11 +10,12 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - Daily goal in ounces (64 oz by default) with a progress ring
 - Undo from the snackbar, or remove any entry from today's list
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
+a- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
 - Light and dark themes
 
 ### Roadmap
 
-- [ ] History: last 7 and 30 days
+- [x] History: last 7 and 30 days
 - [ ] Reminder notifications at a set interval, only during waking hours
 - [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) (and see whether Garmin Connect picks them up)
 - [ ] CSV export
@@ -45,10 +46,14 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── WaterDatabase.kt     Room database
 │   ├── DrinkRepository.kt   Converts "a date" into a millisecond range and calls the DAO
 │   ├── DayRange.kt          Start and end of a local calendar day (handles DST)
+│   ├── DailyTotal.kt        Groups drinks into per-day totals, filling in 0 for empty days
 │   └── SettingsRepository.kt  Daily goal, stored in DataStore
 └── ui/
+    ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>
     ├── TodayScreen.kt       Stateful TodayScreen that wraps the stateless TodayContent (which has a preview)
+    ├── HistoryViewModel.kt  Daily totals for the selected period, plus the average and goal-met stats
+    ├── HistoryScreen.kt     Period toggle, stat cards, Canvas bar chart and day list
     └── theme/Theme.kt       Water-blue Material 3 color scheme
 ```
 
@@ -89,6 +94,12 @@ Unit tests are in `app/src/test`:
 
 - `DayRangeTest` checks day boundaries, including the 23-hour and 25-hour days when daylight saving time starts and ends.
 - `TodayUiStateTest` checks the totals and progress calculation, including going over the goal and a goal of zero.
+- `DailyTotalTest` checks grouping drinks by local day, including empty days and time zones.
+- `HistoryUiStateTest` checks the average (which leaves out today and days with nothing logged) and the goal-met count.
+
+### Known limitation
+
+The app stores only your current goal, so history compares every past day against today's goal. If you change your goal, past days are re-scored against the new one.
 
 ## Database schema
 
