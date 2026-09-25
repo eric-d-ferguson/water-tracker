@@ -11,7 +11,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - Undo from the snackbar, or remove any entry from today's list
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
-a- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
+- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
@@ -19,9 +19,12 @@ a- **History tab:** a 7-day or 30-day bar chart with a goal line, your daily ave
 
 - [x] History: last 7 and 30 days
 - [x] Pace reminders during waking hours
-- [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) (and see whether Garmin Connect picks them up)
+- [x] Goal-reached celebration
+- [ ] Log a drink at a different time, for drinks you forgot to log when you had them
+- [ ] Home-screen widget with today's progress and quick-add buttons
+- [ ] Custom quick-add amounts, to match your own glasses and bottles
 - [ ] CSV export
-- [ ] Home-screen widget
+- [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) and see whether Garmin Connect picks them up (on hold)
 
 ## How reminders work
 
@@ -115,6 +118,66 @@ The Gradle wrapper needs a JDK 17 or newer. Android Studio's bundled JDK works:
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ```
 
+## Installing on your phone
+
+Debug builds install as **Water Tracker (debug)** with the app id `dev.ericferguson.watertracker.debug`, so a debug build can sit next to the release build you use every day. Each has its own data.
+
+### 1. Create a signing key (one time)
+
+```bash
+mkdir -p ~/.android-keys
+keytool -genkeypair -v -keystore ~/.android-keys/water-tracker.jks -alias water-tracker -keyalg RSA -keysize 4096 -validity 36500
+```
+
+`keytool` asks for a password and a name (the other questions can be left blank). **Back up the `.jks` file and its password**, for example in a password manager. Every future update must be signed with this key. If you lose it, you'll have to uninstall the app to install a new version.
+
+### 2. Tell Gradle about the key
+
+Create `keystore.properties` in the project root. It's in `.gitignore`, so it's never committed:
+
+```properties
+storeFile=/Users/YOUR_USER/.android-keys/water-tracker.jks
+storePassword=YOUR_PASSWORD
+keyAlias=water-tracker
+keyPassword=YOUR_PASSWORD
+```
+
+(`keytool` uses the store password for the key too, so both passwords are the same.)
+
+### 3. Build the release APK
+
+```bash
+./gradlew assembleRelease
+```
+
+The APK is written to `app/build/outputs/apk/release/app-release.apk`.
+
+### 4. Install over Wi-Fi (Android 11+)
+
+1. On the phone, turn on Developer options: **Settings → About phone**, then tap **Build number** 7 times.
+2. Connect the phone and the Mac to the same Wi-Fi network.
+3. Go to **Settings → System → Developer options → Wireless debugging**, turn it on, and tap **Pair device with pairing code**.
+4. On the Mac, pair using the IP address, port and code shown on the phone. Then connect using the IP and port on the main Wireless debugging screen, which is a *different* port from the pairing one:
+
+   ```bash
+   adb pair 192.168.1.23:37011
+   adb connect 192.168.1.23:41235
+   ```
+
+5. Install:
+
+   ```bash
+   adb install -r app/build/outputs/apk/release/app-release.apk
+   ```
+
+Android Studio can also do the pairing: **Device Manager → Pair Devices Using Wi-Fi** shows a QR code to scan from the phone's Wireless debugging screen.
+
+**Without developer mode:** copy the APK to the phone (Google Drive, email it to yourself, and so on), open it, and allow that app to "install unknown apps" when asked.
+
+### Updating
+
+Increase `versionCode` (and `versionName`) in `app/build.gradle.kts`, rebuild, and run `adb install -r` again. Your data is kept.
+
 ## Tests
 
 Unit tests are in `app/src/test`:
@@ -131,7 +194,7 @@ Unit tests are in `app/src/test`:
 In **debug builds only**, the reminder receiver is exported (see `app/src/debug/AndroidManifest.xml`), so you can run a pace check right away instead of waiting for the alarm:
 
 ```bash
-adb shell am broadcast -n dev.ericferguson.watertracker/.reminders.ReminderReceiver -a dev.ericferguson.watertracker.action.CHECK_PACE
+adb shell am broadcast -n dev.ericferguson.watertracker.debug/dev.ericferguson.watertracker.reminders.ReminderReceiver -a dev.ericferguson.watertracker.action.CHECK_PACE
 ```
 
 To see the scheduled alarm:
