@@ -25,6 +25,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,20 +56,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ericferguson.watertracker.R
 import dev.ericferguson.watertracker.data.ReminderSettings
+import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.reminders.Pace
 import dev.ericferguson.watertracker.reminders.ReminderSchedule
 import dev.ericferguson.watertracker.ui.theme.WaterTrackerTheme
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-private val GOAL_RANGE = 1..999
-private val DRINK_RANGE = 1..128
 private val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
 /**
- * Stateful entry point. Handles the Android 13+ notification permission here so that
- * [SettingsContent] stays previewable.
+ * Stateful entry point. Handles the Android 13+ notification permission and the file pickers
+ * here so that [SettingsContent] stays previewable.
  */
 @Composable
 fun SettingsScreen(
@@ -72,6 +79,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     fun notificationsAllowed() = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
     var allowed by remember { mutableStateOf(notificationsAllowed()) }
@@ -88,11 +97,21 @@ fun SettingsScreen(
         if (allowed) viewModel.setRemindersEnabled(true) else permissionDenied = true
     }
 
+    // The system file pickers: no storage permission needed, and the user chooses where files go.
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) scope.launch { snackbarHostState.showSnackbar(viewModel.exportTo(uri)) }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch { snackbarHostState.showSnackbar(viewModel.importFrom(uri)) }
+    }
+
     SettingsContent(
         state = state,
+        snackbarHostState = snackbarHostState,
         showNotificationWarning = !allowed && (state.reminders.enabled || permissionDenied),
         onBack = onBack,
-        onSetGoal = viewModel::setGoal,
+        onSetUnit = viewModel::setUnit,
+        onSetGoalMl = viewModel::setGoalMl,
         onRemindersToggled = { enabled ->
             if (enabled && !allowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -108,8 +127,11 @@ fun SettingsScreen(
         },
         onSetWakeTime = viewModel::setWakeTime,
         onSetBedTime = viewModel::setBedTime,
-        onSetWidgetFirstOz = viewModel::setWidgetFirstOz,
-        onSetWidgetSecondOz = viewModel::setWidgetSecondOz,
+        onSetWidgetFirstMl = viewModel::setWidgetFirstMl,
+        onSetWidgetSecondMl = viewModel::setWidgetSecondMl,
+        onExport = { exportLauncher.launch("water-tracker-${LocalDate.now()}.csv") },
+        // Match any type: file managers label .csv files inconsistently.
+        onImport = { importLauncher.launch(arrayOf("*/*")) },
     )
 }
 
@@ -117,15 +139,19 @@ fun SettingsScreen(
 @Composable
 fun SettingsContent(
     state: SettingsUiState,
+    snackbarHostState: SnackbarHostState,
     showNotificationWarning: Boolean,
     onBack: () -> Unit,
-    onSetGoal: (Int) -> Unit,
+    onSetUnit: (VolumeUnit) -> Unit,
+    onSetGoalMl: (Int) -> Unit,
     onRemindersToggled: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onSetWakeTime: (LocalTime) -> Unit,
     onSetBedTime: (LocalTime) -> Unit,
-    onSetWidgetFirstOz: (Int) -> Unit,
-    onSetWidgetSecondOz: (Int) -> Unit,
+    onSetWidgetFirstMl: (Int) -> Unit,
+    onSetWidgetSecondMl: (Int) -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
 ) {
     var showGoalDialog by rememberSaveable { mutableStateOf(false) }
     var showWakeDialog by rememberSaveable { mutableStateOf(false) }
@@ -133,6 +159,7 @@ fun SettingsContent(
     var showWidgetFirstDialog by rememberSaveable { mutableStateOf(false) }
     var showWidgetSecondDialog by rememberSaveable { mutableStateOf(false) }
     val reminders = state.reminders
+    val unit = state.unit
 
     Scaffold(
         topBar = {
@@ -145,6 +172,7 @@ fun SettingsContent(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -152,10 +180,28 @@ fun SettingsContent(
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
+            SectionHeader("Units")
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                VolumeUnit.entries.forEachIndexed { index, option ->
+                    SegmentedButton(
+                        selected = unit == option,
+                        onClick = { onSetUnit(option) },
+                        shape = SegmentedButtonDefaults.itemShape(index, VolumeUnit.entries.size),
+                    ) {
+                        Text(if (option == VolumeUnit.OZ) "Ounces (oz)" else "Milliliters (ml)")
+                    }
+                }
+            }
+            HorizontalDivider()
+
             SectionHeader("Goal")
             ListItem(
                 headlineContent = { Text("Daily goal") },
-                supportingContent = { Text("${state.goalOz} oz") },
+                supportingContent = { Text(unit.format(state.goalMl)) },
                 modifier = Modifier.clickable { showGoalDialog = true },
             )
             HorizontalDivider()
@@ -195,12 +241,12 @@ fun SettingsContent(
             SectionHeader("Widget")
             ListItem(
                 headlineContent = { Text("Left button") },
-                supportingContent = { Text("${state.widgetButtons.firstOz} oz") },
+                supportingContent = { Text(unit.format(state.widgetButtons.firstMl)) },
                 modifier = Modifier.clickable { showWidgetFirstDialog = true },
             )
             ListItem(
                 headlineContent = { Text("Right button") },
-                supportingContent = { Text("${state.widgetButtons.secondOz} oz") },
+                supportingContent = { Text(unit.format(state.widgetButtons.secondMl)) },
                 modifier = Modifier.clickable { showWidgetSecondDialog = true },
             )
             Text(
@@ -209,36 +255,52 @@ fun SettingsContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+            HorizontalDivider()
+
+            SectionHeader("Data")
+            ListItem(
+                headlineContent = { Text("Export to CSV") },
+                supportingContent = { Text("Save all your drinks to a file") },
+                modifier = Modifier.clickable(onClick = onExport),
+            )
+            ListItem(
+                headlineContent = { Text("Import from CSV") },
+                supportingContent = { Text("Add drinks from an exported file. Drinks already in the app are skipped.") },
+                modifier = Modifier.clickable(onClick = onImport),
+            )
         }
     }
 
     if (showGoalDialog) {
         AmountDialog(
             title = "Daily goal",
-            initialValue = state.goalOz.toString(),
-            range = GOAL_RANGE,
+            initialValue = unit.fromMl(state.goalMl).toString(),
+            unit = unit,
+            range = unit.goalRange,
             confirmLabel = "Save",
-            onConfirm = { onSetGoal(it); showGoalDialog = false },
+            onConfirm = { onSetGoalMl(unit.toMl(it)); showGoalDialog = false },
             onDismiss = { showGoalDialog = false },
         )
     }
     if (showWidgetFirstDialog) {
         AmountDialog(
             title = "Left widget button",
-            initialValue = state.widgetButtons.firstOz.toString(),
-            range = DRINK_RANGE,
+            initialValue = unit.fromMl(state.widgetButtons.firstMl).toString(),
+            unit = unit,
+            range = unit.drinkRange,
             confirmLabel = "Save",
-            onConfirm = { onSetWidgetFirstOz(it); showWidgetFirstDialog = false },
+            onConfirm = { onSetWidgetFirstMl(unit.toMl(it)); showWidgetFirstDialog = false },
             onDismiss = { showWidgetFirstDialog = false },
         )
     }
     if (showWidgetSecondDialog) {
         AmountDialog(
             title = "Right widget button",
-            initialValue = state.widgetButtons.secondOz.toString(),
-            range = DRINK_RANGE,
+            initialValue = unit.fromMl(state.widgetButtons.secondMl).toString(),
+            unit = unit,
+            range = unit.drinkRange,
             confirmLabel = "Save",
-            onConfirm = { onSetWidgetSecondOz(it); showWidgetSecondDialog = false },
+            onConfirm = { onSetWidgetSecondMl(unit.toMl(it)); showWidgetSecondDialog = false },
             onDismiss = { showWidgetSecondDialog = false },
         )
     }
@@ -272,7 +334,7 @@ fun SettingsContent(
 private fun reminderExplanation(state: SettingsUiState): String {
     val checks = state.checkTimes.joinToString { timeFormatter.format(it) }
     return "Checks at $checks. You'll get a reminder if you're 10% of your goal " +
-        "(${Pace.behindThresholdOz(state.goalOz)} oz) or more behind pace. The pace aims for your full goal " +
+        "(${state.unit.format(Pace.behindThreshold(state.goalMl))}) or more behind pace. The pace aims for your full goal " +
         "an hour before bedtime, and reminders stop once you reach it."
 }
 
@@ -354,16 +416,20 @@ private fun TimeDialog(
 private fun SettingsContentPreview() {
     WaterTrackerTheme {
         SettingsContent(
-            state = SettingsUiState(goalOz = 80, reminders = ReminderSettings(enabled = true)),
+            state = SettingsUiState(goalMl = VolumeUnit.OZ.toMl(80), reminders = ReminderSettings(enabled = true)),
+            snackbarHostState = remember { SnackbarHostState() },
             showNotificationWarning = true,
             onBack = {},
-            onSetGoal = {},
+            onSetUnit = {},
+            onSetGoalMl = {},
             onRemindersToggled = {},
             onOpenNotificationSettings = {},
             onSetWakeTime = {},
             onSetBedTime = {},
-            onSetWidgetFirstOz = {},
-            onSetWidgetSecondOz = {},
+            onSetWidgetFirstMl = {},
+            onSetWidgetSecondMl = {},
+            onExport = {},
+            onImport = {},
         )
     }
 }

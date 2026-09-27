@@ -20,8 +20,9 @@ fun CoroutineScope.launchWidgetUpdates(context: Context, database: WaterDatabase
     launch {
         merge(
             database.invalidationTracker.createFlow("drinks").map { },
-            settings.dailyGoalOz.map { },
+            settings.dailyGoalMl.map { },
             settings.widgetButtons.map { },
+            settings.unit.map { },
         ).collectLatest {
             WaterWidget().updateAll(context)
         }

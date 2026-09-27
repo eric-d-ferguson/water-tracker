@@ -10,20 +10,20 @@ class HistoryUiStateTest {
     private val today = LocalDate.of(2026, 9, 23)
 
     /** Totals are oldest first; the last one is today. */
-    private fun state(vararg totals: Int, goalOz: Int = 64) = HistoryUiState(
+    private fun state(vararg totals: Int, goalMl: Int = 64) = HistoryUiState(
         days = totals.mapIndexed { i, oz -> DailyTotal(today.minusDays((totals.size - 1 - i).toLong()), oz) },
-        goalOz = goalOz,
+        goalMl = goalMl,
     )
 
     @Test
     fun averageLeavesOutTodayAndEmptyDays() {
         // (60 + 70) / 2; the 0 day and today's 8 are ignored.
-        assertEquals(65, state(0, 60, 70, 8).averageOz)
+        assertEquals(65, state(0, 60, 70, 8).averageMl)
     }
 
     @Test
     fun averageIsNullWithNoFinishedDays() {
-        assertNull(state(0, 0, 32).averageOz)
+        assertNull(state(0, 0, 32).averageMl)
     }
 
     @Test

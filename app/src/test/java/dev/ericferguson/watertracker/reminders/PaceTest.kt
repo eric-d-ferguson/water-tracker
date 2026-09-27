@@ -12,9 +12,9 @@ class PaceTest {
     private val bed = LocalTime.of(22, 0)
     private val goal = 80
 
-    private fun target(hour: Int, minute: Int = 0) = Pace.targetOz(LocalTime.of(hour, minute), wake, bed, goal)
+    private fun target(hour: Int, minute: Int = 0) = Pace.target(LocalTime.of(hour, minute), wake, bed, goal)
 
-    private fun remind(hour: Int, totalOz: Int) = Pace.shouldRemind(LocalTime.of(hour, 0), wake, bed, goal, totalOz)
+    private fun remind(hour: Int, total: Int) = Pace.shouldRemind(LocalTime.of(hour, 0), wake, bed, goal, total)
 
     @Test
     fun targetIsZeroAtWakeUp() {
@@ -34,29 +34,29 @@ class PaceTest {
 
     @Test
     fun thresholdIsTenPercentRoundedUp() {
-        assertEquals(8, Pace.behindThresholdOz(80))
-        assertEquals(7, Pace.behindThresholdOz(64))
+        assertEquals(8, Pace.behindThreshold(80))
+        assertEquals(7, Pace.behindThreshold(64))
     }
 
     @Test
     fun remindsWhenAtLeastTenPercentBehind() {
         // Target at 2 PM is 40 oz; 8 oz behind is exactly the threshold.
-        assertTrue(remind(14, totalOz = 32))
+        assertTrue(remind(14, total = 32))
     }
 
     @Test
     fun staysQuietWhenLessThanTenPercentBehind() {
-        assertFalse(remind(14, totalOz = 33))
+        assertFalse(remind(14, total = 33))
     }
 
     @Test
     fun staysQuietOnceGoalIsMet() {
-        assertFalse(remind(21, totalOz = 80))
+        assertFalse(remind(21, total = 80))
     }
 
     @Test
     fun staysQuietOutsideWakingHours() {
-        assertFalse(remind(6, totalOz = 0))
-        assertFalse(remind(22, totalOz = 0))
+        assertFalse(remind(6, total = 0))
+        assertFalse(remind(22, total = 0))
     }
 }

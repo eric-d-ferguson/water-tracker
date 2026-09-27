@@ -9,6 +9,7 @@ import dev.ericferguson.watertracker.WaterTrackerApp
 import dev.ericferguson.watertracker.data.Drink
 import dev.ericferguson.watertracker.data.DrinkRepository
 import dev.ericferguson.watertracker.data.SettingsRepository
+import dev.ericferguson.watertracker.data.VolumeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,15 +20,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+/** Amounts are in ml; [unit] says how to show them. */
 data class TodayUiState(
     val drinks: List<Drink> = emptyList(),
-    val goalOz: Int = SettingsRepository.DEFAULT_GOAL_OZ,
+    val goalMl: Int = VolumeUnit.OZ.defaultGoalMl,
+    val unit: VolumeUnit = VolumeUnit.OZ,
 ) {
-    val totalOz: Int get() = drinks.sumOf { it.amountOz }
-    val progress: Float get() = if (goalOz > 0) totalOz.toFloat() / goalOz else 0f
+    val totalMl: Int get() = drinks.sumOf { it.amountMl }
+    val progress: Float get() = if (goalMl > 0) totalMl.toFloat() / goalMl else 0f
 
-    /** True if adding [oz] takes the total from under the goal to at or over it. */
-    fun reachesGoalWith(oz: Int): Boolean = totalOz < goalOz && totalOz + oz >= goalOz
+    /** True if adding [ml] takes the total from under the goal to at or over it. */
+    fun reachesGoalWith(ml: Int): Boolean = totalMl < goalMl && totalMl + ml >= goalMl
 }
 
 class TodayViewModel(
@@ -41,8 +44,10 @@ class TodayViewModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TodayUiState> = combine(
         today.flatMapLatest { drinkRepository.drinksOn(it) },
-        settingsRepository.dailyGoalOz,
-    ) { drinks, goal -> TodayUiState(drinks, goal) }
+        settingsRepository.dailyGoalMl,
+        settingsRepository.unit,
+        ::TodayUiState,
+    )
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
 
     /** Called whenever the screen resumes, so the total resets after midnight. */
@@ -51,7 +56,7 @@ class TodayViewModel(
     }
 
     /** Suspends until saved and returns the id, so the UI can offer Undo. */
-    suspend fun addDrink(amountOz: Int): Long = drinkRepository.add(amountOz)
+    suspend fun addDrink(amountMl: Int): Long = drinkRepository.add(amountMl)
 
     fun removeDrink(id: Long) {
         viewModelScope.launch { drinkRepository.remove(id) }

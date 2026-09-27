@@ -4,10 +4,13 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** One logged drink. Times are stored as epoch millis so they sort and range-query cheaply. */
+/**
+ * One logged drink. Amounts are whole ml whatever unit is shown (see [VolumeUnit]); times are
+ * epoch millis so they sort and range-query cheaply.
+ */
 @Entity(tableName = "drinks", indices = [Index("timestampMillis")])
 data class Drink(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val amountOz: Int,
+    val amountMl: Int,
     val timestampMillis: Long,
 )

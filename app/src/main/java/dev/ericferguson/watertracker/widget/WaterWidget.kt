@@ -39,6 +39,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import dev.ericferguson.watertracker.MainActivity
 import dev.ericferguson.watertracker.WaterTrackerApp
+import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.data.WidgetButtons
 import dev.ericferguson.watertracker.ui.theme.DarkColors
 import dev.ericferguson.watertracker.ui.theme.LightColors
@@ -49,7 +50,7 @@ import java.time.LocalDate
 
 private val WidgetColors = ColorProviders(light = LightColors, dark = DarkColors)
 
-private data class WidgetState(val totalOz: Int, val goalOz: Int, val buttons: WidgetButtons)
+private data class WidgetState(val totalMl: Int, val goalMl: Int, val buttons: WidgetButtons, val unit: VolumeUnit)
 
 /**
  * A 4x1 home-screen widget: today's total, a progress bar, and two quick-add buttons.
@@ -64,9 +65,10 @@ class WaterWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val app = context.applicationContext as WaterTrackerApp
         val state = combine(
-            app.drinkRepository.drinksOn(LocalDate.now()).map { drinks -> drinks.sumOf { it.amountOz } },
-            app.settingsRepository.dailyGoalOz,
+            app.drinkRepository.drinksOn(LocalDate.now()).map { drinks -> drinks.sumOf { it.amountMl } },
+            app.settingsRepository.dailyGoalMl,
             app.settingsRepository.widgetButtons,
+            app.settingsRepository.unit,
             ::WidgetState,
         )
         // Load the first value up front so the widget never flashes placeholder numbers.
@@ -75,7 +77,7 @@ class WaterWidget : GlanceAppWidget() {
         provideContent {
             val current by state.collectAsState(initial)
             GlanceTheme(colors = WidgetColors) {
-                WidgetContent(current.totalOz, current.goalOz, current.buttons)
+                WidgetContent(current)
             }
         }
     }
@@ -86,9 +88,14 @@ class WaterWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun WidgetContent(totalOz: Int, goalOz: Int, buttons: WidgetButtons) {
-    val progress = if (goalOz > 0) (totalOz.toFloat() / goalOz).coerceIn(0f, 1f) else 0f
-    val label = if (totalOz >= goalOz) "$totalOz oz · Goal reached!" else "$totalOz / $goalOz oz"
+private fun WidgetContent(state: WidgetState) {
+    val unit = state.unit
+    val progress = if (state.goalMl > 0) (state.totalMl.toFloat() / state.goalMl).coerceIn(0f, 1f) else 0f
+    val label = if (state.totalMl >= state.goalMl) {
+        "${unit.format(state.totalMl)} · Goal reached!"
+    } else {
+        "${unit.fromMl(state.totalMl)} / ${unit.format(state.goalMl)}"
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -119,25 +126,26 @@ private fun WidgetContent(totalOz: Int, goalOz: Int, buttons: WidgetButtons) {
             )
         }
         Spacer(GlanceModifier.width(12.dp))
-        AddButton(buttons.firstOz)
+        AddButton(state.buttons.firstMl, unit)
         Spacer(GlanceModifier.width(8.dp))
-        AddButton(buttons.secondOz)
+        AddButton(state.buttons.secondMl, unit)
     }
 }
 
 @Composable
-private fun AddButton(oz: Int) {
+private fun AddButton(ml: Int, unit: VolumeUnit) {
+    val amount = unit.fromMl(ml)
     Box(
         contentAlignment = Alignment.Center,
         modifier = GlanceModifier
             .size(width = 56.dp, height = 40.dp)
             .background(GlanceTheme.colors.primary)
             .cornerRadius(20.dp)
-            .clickable(actionRunCallback<AddDrinkAction>(actionParametersOf(AddDrinkAction.AmountKey to oz)))
-            .semantics { contentDescription = "Log $oz ounces" },
+            .clickable(actionRunCallback<AddDrinkAction>(actionParametersOf(AddDrinkAction.AmountMlKey to ml)))
+            .semantics { contentDescription = "Log ${unit.format(ml)}" },
     ) {
         Text(
-            text = "+$oz",
+            text = "+$amount",
             style = TextStyle(
                 color = GlanceTheme.colors.onPrimary,
                 fontSize = 15.sp,

@@ -2,17 +2,19 @@
 
 A simple, ad-free Android app for tracking how much water you drink each day.
 
-It has no ads, no account and no internet access. Your data stays on your phone and is backed up by Android's automatic Google Drive backup.
+It has no ads, no account and no internet access. Your data stays on your phone and is backed up by Android's automatic Google Drive backup (assuming enabled).
 
 ## Features
 
-- One-tap logging of 8, 12, 16 or 20 oz, plus a custom amount
-- Daily goal in ounces (64 oz by default, change it in Settings) with a progress ring
+- **Ounces or milliliters:** pick a unit in Settings. It defaults to oz in the US and ml elsewhere.
+- One-tap logging (8, 12, 16 or 20 oz, or 250, 350, 500 or 750 ml), plus a custom amount
+- Daily goal (64 oz or 2000 ml by default, change it in Settings) with a progress ring
 - Undo from the snackbar, or remove any entry from today's list
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
 - **Home-screen widget:** a 4×1 bar with today's progress and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
+- **CSV export and import:** save all your drinks to a file, or merge them back in (for example on a new phone). Drinks already in the app are skipped.
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
@@ -24,7 +26,8 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - [ ] Log a drink at a different time, for drinks you forgot to log when you had them
 - [x] Home-screen widget with today's progress and quick-add buttons
 - [ ] Custom quick-add amounts, to match your own glasses and bottles
-- [ ] CSV export
+- [x] Ounces or milliliters
+- [x] CSV export and import
 - [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) and see whether Garmin Connect picks them up (on hold)
 
 ## How reminders work
@@ -70,13 +73,16 @@ app/src/main/java/dev/ericferguson/watertracker/
 ├── MainActivity.kt          Hosts the Compose UI
 ├── WaterTrackerApp.kt       Application class: repositories, notification channel, reschedule on start
 ├── data/
-│   ├── Drink.kt             Room entity: id, amountOz, timestampMillis
+│   ├── Drink.kt             Room entity: id, amountMl, timestampMillis
+│   ├── VolumeUnit.kt        oz/ml: conversion, formatting, quick-add amounts and input ranges
 │   ├── DrinkDao.kt          Queries; observeBetween() returns a Flow that re-emits on every change
-│   ├── WaterDatabase.kt     Room database
+│   ├── WaterDatabase.kt     Room database, including the v1→v2 oz-to-ml migration
 │   ├── DrinkRepository.kt   Converts "a date" into a millisecond range and calls the DAO
 │   ├── DayRange.kt          Start and end of a local calendar day (handles DST)
 │   ├── DailyTotal.kt        Groups drinks into per-day totals, filling in 0 for empty days
-│   └── SettingsRepository.kt  Goal and reminder settings, stored in DataStore
+│   ├── DrinkCsv.kt          CSV format for export/import, plus duplicate detection
+│   ├── DrinkBackup.kt       Reads and writes CSV files chosen with the system file picker
+│   └── SettingsRepository.kt  Unit, goal, reminder and widget settings, stored in DataStore
 ├── reminders/
 │   ├── Pace.kt              Target-by-now math and the 10%-behind rule
 │   ├── ReminderSchedule.kt  Check times and the next check after a given time
@@ -93,7 +99,7 @@ app/src/main/java/dev/ericferguson/watertracker/
     ├── HistoryViewModel.kt  Daily totals for the selected period, plus the average and goal-met stats
     ├── HistoryScreen.kt     Period toggle, stat cards, Canvas bar chart and day list
     ├── SettingsViewModel.kt Saves settings, then reschedules the alarm
-    ├── SettingsScreen.kt    Goal, reminders, wake/bed times, widget button amounts
+    ├── SettingsScreen.kt    Units, goal, reminders, wake/bed times, widget buttons, export/import
     ├── AmountDialog.kt      Number-of-ounces dialog shared by Today and Settings
     ├── GoalCelebration.kt   Ring bounce and droplet splash when you reach your goal
     └── theme/Theme.kt       Water-blue Material 3 color scheme
@@ -186,9 +192,33 @@ Android Studio can also do the pairing: **Device Manager → Pair Devices Using 
 
 **Without developer mode:** copy the APK to the phone (Google Drive, email it to yourself, and so on), open it, and allow that app to "install unknown apps" when asked.
 
+### Testing a release build first
+
+Release builds are shrunk by R8, which can remove code that libraries only reach by reflection. Debug builds aren't shrunk, so they won't show these problems. Keep rules for the cases found so far are in `app/proguard-rules.pro`. To try a shrunk build on an emulator without clashing with other installs:
+
+```bash
+./gradlew assembleRelease -PreleaseTest
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+It installs as `dev.ericferguson.watertracker.releasetest`. Rebuild without `-PreleaseTest` before installing on your phone.
+
 ### Updating
 
 Increase `versionCode` (and `versionName`) in `app/build.gradle.kts`, rebuild, and run `adb install -r` again. Your data is kept.
+
+## Units and your data
+
+Amounts are always **stored in whole milliliters**. Ounces are only a display unit, so switching back and forth never loses precision. 8 oz is stored as 237 ml and still shows as 8 oz. Switching units rounds your goal to a tidy number (whole ounces, or the nearest 50 ml) and resets the widget buttons to that unit's defaults.
+
+**Export** (Settings → Data) writes one row per drink:
+
+```
+timestamp,amount_ml,amount_oz
+2026-09-27T08:15:00-05:00,237,8.0
+```
+
+The timestamp is your local time with its UTC offset. **Import** reads `timestamp` and `amount_ml`, ignores `amount_oz`, and skips any drink already in the app (same time and amount), so importing a file twice is safe. Files are opened through the system file picker, so the app needs no storage permission.
 
 ## Tests
 
@@ -197,6 +227,8 @@ Unit tests are in `app/src/test`:
 - `DayRangeTest` checks day boundaries, including the 23-hour and 25-hour days when daylight saving time starts and ends.
 - `TodayUiStateTest` checks the totals and progress calculation (including going over the goal and a goal of zero), and when a drink counts as reaching the goal.
 - `DailyTotalTest` checks grouping drinks by local day, including empty days and time zones.
+- `VolumeUnitTest` checks oz/ml conversion (every whole oz survives the trip to ml and back), rounding when switching units, and the default unit per country.
+- `DrinkCsvTest` checks the CSV format, an exact export/import round trip, bad rows, Windows line endings, quotes, and skipping duplicates.
 - `HistoryUiStateTest` checks the average (which leaves out today and days with nothing logged) and the goal-met count.
 - `PaceTest` checks the pace target, the 10% threshold, and staying quiet outside waking hours or after reaching the goal.
 - `ReminderScheduleTest` checks the check times, the next check across midnight, and waking-hours validation.
@@ -221,4 +253,4 @@ The app stores only your current goal, so history compares every past day agains
 
 ## Database schema
 
-Room exports its schema to `app/schemas/`. Commit these files: when the `Drink` table changes, bump the database version and add a migration so existing data isn't lost.
+Room exports its schema to `app/schemas/`. Commit these files: when the `Drink` table changes, bump the database version and add a migration so existing data isn't lost. Version 2 renamed `amountOz` to `amountMl` and converted the values (`WaterDatabase.OzToMl`).

@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dev.ericferguson.watertracker.R
 import dev.ericferguson.watertracker.data.DrinkRepository
 import dev.ericferguson.watertracker.data.SettingsRepository
+import dev.ericferguson.watertracker.data.VolumeUnit
 import kotlinx.coroutines.flow.first
 import java.time.Clock
 import java.time.Duration
@@ -67,15 +68,16 @@ class ReminderManager(
         if (!reminder.enabled) return
 
         val now = LocalDateTime.now(clock())
-        val goalOz = settings.dailyGoalOz.first()
-        val totalOz = drinks.totalOn(now.toLocalDate())
+        val goalMl = settings.dailyGoalMl.first()
+        val totalMl = drinks.totalOn(now.toLocalDate())
         val time = now.toLocalTime()
-        if (Pace.shouldRemind(time, reminder.wakeTime, reminder.bedTime, goalOz, totalOz)) {
-            showReminder(totalOz, Pace.targetOz(time, reminder.wakeTime, reminder.bedTime, goalOz))
+        if (Pace.shouldRemind(time, reminder.wakeTime, reminder.bedTime, goalMl, totalMl)) {
+            val targetMl = Pace.target(time, reminder.wakeTime, reminder.bedTime, goalMl)
+            showReminder(settings.unit.first(), totalMl, targetMl)
         }
     }
 
-    private fun showReminder(totalOz: Int, targetOz: Int) {
+    private fun showReminder(unit: VolumeUnit, totalMl: Int, targetMl: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -92,7 +94,7 @@ class ReminderManager(
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_water_drop)
             .setContentTitle("Time for some water")
-            .setContentText("You're at $totalOz oz. Aim for $targetOz oz by now to stay on pace.")
+            .setContentText("You're at ${unit.format(totalMl)}. Aim for ${unit.format(targetMl)} by now to stay on pace.")
             .setContentIntent(openApp)
             .setAutoCancel(true)
             .build()

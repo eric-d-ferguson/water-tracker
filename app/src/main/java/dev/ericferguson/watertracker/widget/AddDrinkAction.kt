@@ -9,11 +9,11 @@ import dev.ericferguson.watertracker.WaterTrackerApp
 /** Runs when a widget button is tapped. The widget picks up the new drink on its own. */
 class AddDrinkAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val oz = parameters[AmountKey] ?: return
-        (context.applicationContext as WaterTrackerApp).drinkRepository.add(oz)
+        val ml = parameters[AmountMlKey] ?: return
+        (context.applicationContext as WaterTrackerApp).drinkRepository.add(ml)
     }
 
     companion object {
-        val AmountKey = ActionParameters.Key<Int>("amountOz")
+        val AmountMlKey = ActionParameters.Key<Int>("amountMl")
     }
 }

@@ -13,7 +13,7 @@ class DailyTotalTest {
     private val wed = mon.plusDays(2)
 
     private fun drinkAt(time: LocalDateTime, oz: Int) =
-        Drink(amountOz = oz, timestampMillis = time.atZone(zone).toInstant().toEpochMilli())
+        Drink(amountMl = oz, timestampMillis = time.atZone(zone).toInstant().toEpochMilli())
 
     @Test
     fun sumsDrinksPerLocalDay() {

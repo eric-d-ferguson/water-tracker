@@ -16,7 +16,8 @@ class DrinkRepository(
         return dao.observeBetween(range.startMillis, range.endMillis)
     }
 
-    suspend fun totalOn(date: LocalDate): Int = drinksOn(date).first().sumOf { it.amountOz }
+    /** Today's (or any day's) total in ml. */
+    suspend fun totalOn(date: LocalDate): Int = drinksOn(date).first().sumOf { it.amountMl }
 
     /** One total per day from [from] to [to] inclusive, oldest first. */
     fun dailyTotals(from: LocalDate, to: LocalDate): Flow<List<DailyTotal>> {
@@ -28,8 +29,17 @@ class DrinkRepository(
     }
 
     /** Returns the new row's id so the caller can undo it. */
-    suspend fun add(amountOz: Int): Long =
-        dao.insert(Drink(amountOz = amountOz, timestampMillis = clock().millis()))
+    suspend fun add(amountMl: Int): Long =
+        dao.insert(Drink(amountMl = amountMl, timestampMillis = clock().millis()))
 
     suspend fun remove(id: Long) = dao.deleteById(id)
+
+    suspend fun all(): List<Drink> = dao.getAll()
+
+    /** Adds [incoming] drinks that aren't already stored. Returns how many were added. */
+    suspend fun import(incoming: List<Drink>): Int {
+        val toAdd = drinksToImport(existing = dao.getAll(), incoming = incoming)
+        dao.insertAll(toAdd)
+        return toAdd.size
+    }
 }

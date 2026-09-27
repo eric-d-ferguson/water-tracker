@@ -9,6 +9,7 @@ import dev.ericferguson.watertracker.WaterTrackerApp
 import dev.ericferguson.watertracker.data.DailyTotal
 import dev.ericferguson.watertracker.data.DrinkRepository
 import dev.ericferguson.watertracker.data.SettingsRepository
+import dev.ericferguson.watertracker.data.VolumeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,20 +28,21 @@ data class HistoryUiState(
     val period: HistoryPeriod = HistoryPeriod.WEEK,
     /** Oldest first; the last entry is today. */
     val days: List<DailyTotal> = emptyList(),
-    val goalOz: Int = SettingsRepository.DEFAULT_GOAL_OZ,
+    val goalMl: Int = VolumeUnit.OZ.defaultGoalMl,
+    val unit: VolumeUnit = VolumeUnit.OZ,
 ) {
     /**
      * Average of the finished days that have any drinks logged. Today is still in progress,
      * and days before you started using the app would pull the average down, so both are
      * left out. Null when there's nothing to average yet.
      */
-    val averageOz: Int?
+    val averageMl: Int?
         get() = days.dropLast(1)
-            .filter { it.totalOz > 0 }
+            .filter { it.totalMl > 0 }
             .takeIf { it.isNotEmpty() }
-            ?.let { logged -> logged.sumOf { it.totalOz } / logged.size }
+            ?.let { logged -> logged.sumOf { it.totalMl } / logged.size }
 
-    val daysGoalMet: Int get() = days.count { it.totalOz >= goalOz }
+    val daysGoalMet: Int get() = days.count { it.totalMl >= goalMl }
 }
 
 class HistoryViewModel(
@@ -56,8 +58,9 @@ class HistoryViewModel(
         .flatMapLatest { (day, period) ->
             combine(
                 drinkRepository.dailyTotals(from = day.minusDays(period.days - 1L), to = day),
-                settingsRepository.dailyGoalOz,
-            ) { totals, goal -> HistoryUiState(period, totals, goal) }
+                settingsRepository.dailyGoalMl,
+                settingsRepository.unit,
+            ) { totals, goal, unit -> HistoryUiState(period, totals, goal, unit) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
 

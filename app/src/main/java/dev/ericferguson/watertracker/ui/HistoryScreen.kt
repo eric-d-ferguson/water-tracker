@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ericferguson.watertracker.data.DailyTotal
+import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.ui.theme.WaterTrackerTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -95,7 +96,7 @@ fun HistoryContent(state: HistoryUiState, onSelectPeriod: (HistoryPeriod) -> Uni
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatCard(
                         label = "Daily average",
-                        value = state.averageOz?.let { "$it oz" } ?: "—",
+                        value = state.averageMl?.let(state.unit::format) ?: "—",
                         modifier = Modifier.weight(1f),
                     )
                     StatCard(
@@ -108,7 +109,7 @@ fun HistoryContent(state: HistoryUiState, onSelectPeriod: (HistoryPeriod) -> Uni
             item {
                 DailyBarChart(
                     days = state.days,
-                    goalOz = state.goalOz,
+                    goalMl = state.goalMl,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
@@ -123,7 +124,7 @@ fun HistoryContent(state: HistoryUiState, onSelectPeriod: (HistoryPeriod) -> Uni
                 )
             }
             items(state.days.asReversed(), key = { it.date.toEpochDay() }) { day ->
-                DayRow(day = day, goalOz = state.goalOz, today = today)
+                DayRow(day = day, goalMl = state.goalMl, unit = state.unit, today = today)
                 HorizontalDivider()
             }
         }
@@ -149,7 +150,7 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
  * Labels are narrow weekday names for a week; for a month, every 7th day counting back from today.
  */
 @Composable
-private fun DailyBarChart(days: List<DailyTotal>, goalOz: Int, modifier: Modifier = Modifier) {
+private fun DailyBarChart(days: List<DailyTotal>, goalMl: Int, modifier: Modifier = Modifier) {
     if (days.isEmpty()) return
 
     val metColor = MaterialTheme.colorScheme.primary
@@ -168,17 +169,17 @@ private fun DailyBarChart(days: List<DailyTotal>, goalOz: Int, modifier: Modifie
         val labelHeight = 20.dp.toPx()
         val chartHeight = size.height - labelHeight
         // Leave headroom so a bar at the maximum doesn't touch the top edge.
-        val scaleMaxOz = max(goalOz, days.maxOf { it.totalOz }).coerceAtLeast(1) * 1.1f
+        val scaleMax = max(goalMl, days.maxOf { it.totalMl }).coerceAtLeast(1) * 1.1f
         val slotWidth = size.width / days.size
         val barWidth = slotWidth * 0.6f
         val corner = CornerRadius(min(barWidth / 2, 4.dp.toPx()))
 
         days.forEachIndexed { index, day ->
             val slotLeft = index * slotWidth
-            val barHeight = chartHeight * day.totalOz / scaleMaxOz
+            val barHeight = chartHeight * day.totalMl / scaleMax
             if (barHeight > 0f) {
                 drawRoundRect(
-                    color = if (day.totalOz >= goalOz) metColor else unmetColor,
+                    color = if (day.totalMl >= goalMl) metColor else unmetColor,
                     topLeft = Offset(slotLeft + (slotWidth - barWidth) / 2, chartHeight - barHeight),
                     size = Size(barWidth, barHeight),
                     cornerRadius = corner,
@@ -205,7 +206,7 @@ private fun DailyBarChart(days: List<DailyTotal>, goalOz: Int, modifier: Modifie
 
         drawLine(baselineColor, Offset(0f, chartHeight), Offset(size.width, chartHeight), strokeWidth = 1.dp.toPx())
 
-        val goalY = chartHeight - chartHeight * goalOz / scaleMaxOz
+        val goalY = chartHeight - chartHeight * goalMl / scaleMax
         drawLine(
             color = goalLineColor,
             start = Offset(0f, goalY),
@@ -219,21 +220,21 @@ private fun DailyBarChart(days: List<DailyTotal>, goalOz: Int, modifier: Modifie
 private val dayFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 
 @Composable
-private fun DayRow(day: DailyTotal, goalOz: Int, today: LocalDate?) {
+private fun DayRow(day: DailyTotal, goalMl: Int, unit: VolumeUnit, today: LocalDate?) {
     val label = when (day.date) {
         today -> "Today"
         today?.minusDays(1) -> "Yesterday"
         else -> dayFormatter.format(day.date)
     }
-    val percent = if (goalOz > 0) day.totalOz * 100 / goalOz else 0
-    val metGoal = day.totalOz >= goalOz
+    val percent = if (goalMl > 0) day.totalMl * 100 / goalMl else 0
+    val metGoal = day.totalMl >= goalMl
 
     ListItem(
         headlineContent = { Text(label) },
         supportingContent = { Text("$percent% of goal") },
         trailingContent = {
             Text(
-                text = "${day.totalOz} oz",
+                text = unit.format(day.totalMl),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (metGoal) FontWeight.Bold else FontWeight.Normal,
                 color = if (metGoal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -251,8 +252,8 @@ private fun HistoryContentPreview() {
         HistoryContent(
             state = HistoryUiState(
                 period = HistoryPeriod.WEEK,
-                days = totals.mapIndexed { i, oz -> DailyTotal(today.minusDays(6L - i), oz) },
-                goalOz = 64,
+                days = totals.mapIndexed { i, oz -> DailyTotal(today.minusDays(6L - i), VolumeUnit.OZ.toMl(oz)) },
+                goalMl = VolumeUnit.OZ.toMl(64),
             ),
             onSelectPeriod = {},
         )

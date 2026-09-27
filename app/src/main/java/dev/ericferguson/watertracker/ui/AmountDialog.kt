@@ -11,12 +11,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
+import dev.ericferguson.watertracker.data.VolumeUnit
 
-/** Asks for a whole number of ounces within [range]; used for custom drinks and the daily goal. */
+/** Asks for a whole amount in [unit] within [range]; used for custom drinks, the goal and widget buttons. */
 @Composable
 fun AmountDialog(
     title: String,
     initialValue: String,
+    unit: VolumeUnit,
     range: IntRange,
     confirmLabel: String,
     onConfirm: (Int) -> Unit,
@@ -31,11 +33,11 @@ fun AmountDialog(
         text = {
             OutlinedTextField(
                 value = text,
-                onValueChange = { input -> text = input.filter(Char::isDigit).take(3) },
-                suffix = { Text("oz") },
+                onValueChange = { input -> text = input.filter(Char::isDigit).take(range.last.toString().length) },
+                suffix = { Text(unit.label) },
                 singleLine = true,
                 isError = text.isNotEmpty() && amount == null,
-                supportingText = { Text("${range.first}–${range.last} oz") },
+                supportingText = { Text("${range.first}–${range.last} ${unit.label}") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
         },

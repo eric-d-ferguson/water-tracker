@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ericferguson.watertracker.R
 import dev.ericferguson.watertracker.data.Drink
+import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.ui.theme.WaterTrackerTheme
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -57,10 +58,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-private val QUICK_ADD_OZ = listOf(8, 12, 16, 20)
 private val RING_SIZE = 220.dp
 private val RING_STROKE = 20.dp
-private val DRINK_RANGE = 1..128
 
 /** Stateful entry point: wires the ViewModel to the stateless [TodayContent]. */
 @Composable
@@ -83,10 +82,11 @@ fun TodayScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         celebration = celebration,
-        onAdd = { oz ->
-            val reachesGoal = state.reachesGoalWith(oz)
+        onAdd = { ml ->
+            val reachesGoal = state.reachesGoalWith(ml)
+            val added = "Added ${state.unit.format(ml)}"
             scope.launch {
-                val id = viewModel.addDrink(oz)
+                val id = viewModel.addDrink(ml)
                 if (reachesGoal) {
                     haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                     launch { celebration.play() }
@@ -94,7 +94,7 @@ fun TodayScreen(
                 // Replace any snackbar still showing instead of queueing behind it.
                 snackbarHostState.currentSnackbarData?.dismiss()
                 val result = snackbarHostState.showSnackbar(
-                    message = if (reachesGoal) "Added $oz oz · Goal reached!" else "Added $oz oz",
+                    message = if (reachesGoal) "$added · Goal reached!" else added,
                     actionLabel = "Undo",
                     duration = SnackbarDuration.Short,
                 )
@@ -144,8 +144,9 @@ fun TodayContent(
             item {
                 ProgressRing(
                     progress = state.progress,
-                    totalOz = state.totalOz,
-                    goalOz = state.goalOz,
+                    total = state.unit.format(state.totalMl),
+                    goal = state.unit.format(state.goalMl),
+                    goalReached = state.totalMl >= state.goalMl,
                     celebration = celebration,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -153,7 +154,7 @@ fun TodayContent(
                 )
             }
             item {
-                QuickAddButtons(onAdd = onAdd, onCustom = { showCustomDialog = true })
+                QuickAddButtons(unit = state.unit, onAdd = onAdd, onCustom = { showCustomDialog = true })
             }
             item {
                 Text(
@@ -172,7 +173,7 @@ fun TodayContent(
                 }
             }
             items(state.drinks, key = { it.id }) { drink ->
-                DrinkRow(drink = drink, onRemove = { onRemove(drink.id) })
+                DrinkRow(drink = drink, unit = state.unit, onRemove = { onRemove(drink.id) })
                 HorizontalDivider()
             }
         }
@@ -182,9 +183,10 @@ fun TodayContent(
         AmountDialog(
             title = "Custom amount",
             initialValue = "",
-            range = DRINK_RANGE,
+            unit = state.unit,
+            range = state.unit.drinkRange,
             confirmLabel = "Add",
-            onConfirm = { onAdd(it); showCustomDialog = false },
+            onConfirm = { onAdd(state.unit.toMl(it)); showCustomDialog = false },
             onDismiss = { showCustomDialog = false },
         )
     }
@@ -193,8 +195,9 @@ fun TodayContent(
 @Composable
 private fun ProgressRing(
     progress: Float,
-    totalOz: Int,
-    goalOz: Int,
+    total: String,
+    goal: String,
+    goalReached: Boolean,
     celebration: GoalCelebrationState,
     modifier: Modifier = Modifier,
 ) {
@@ -218,9 +221,9 @@ private fun ProgressRing(
                 drawArc(color = fillColor, startAngle = -90f, sweepAngle = 360f * animated, useCenter = false, style = stroke)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("$totalOz oz", style = MaterialTheme.typography.displayMedium)
+                Text(total, style = MaterialTheme.typography.displayMedium)
                 Text(
-                    text = if (totalOz >= goalOz) "Goal reached!" else "of $goalOz oz",
+                    text = if (goalReached) "Goal reached!" else "of $goal",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -231,16 +234,16 @@ private fun ProgressRing(
 }
 
 @Composable
-private fun QuickAddButtons(onAdd: (Int) -> Unit, onCustom: () -> Unit) {
+private fun QuickAddButtons(unit: VolumeUnit, onAdd: (Int) -> Unit, onCustom: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QUICK_ADD_OZ.forEach { oz ->
+            unit.quickAdd.forEach { amount ->
                 FilledTonalButton(
-                    onClick = { onAdd(oz) },
+                    onClick = { onAdd(unit.toMl(amount)) },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 12.dp),
                 ) {
-                    Text("+$oz")
+                    Text("+$amount")
                 }
             }
         }
@@ -253,10 +256,10 @@ private fun QuickAddButtons(onAdd: (Int) -> Unit, onCustom: () -> Unit) {
 private val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
 @Composable
-private fun DrinkRow(drink: Drink, onRemove: () -> Unit) {
+private fun DrinkRow(drink: Drink, unit: VolumeUnit, onRemove: () -> Unit) {
     val time = Instant.ofEpochMilli(drink.timestampMillis).atZone(ZoneId.systemDefault()).toLocalTime()
     ListItem(
-        headlineContent = { Text("${drink.amountOz} oz") },
+        headlineContent = { Text(unit.format(drink.amountMl)) },
         supportingContent = { Text(timeFormatter.format(time)) },
         trailingContent = {
             IconButton(onClick = onRemove) {
@@ -274,10 +277,10 @@ private fun TodayContentPreview() {
         TodayContent(
             state = TodayUiState(
                 drinks = listOf(
-                    Drink(id = 2, amountOz = 16, timestampMillis = now),
-                    Drink(id = 1, amountOz = 12, timestampMillis = now - 3_600_000),
+                    Drink(id = 2, amountMl = 473, timestampMillis = now),
+                    Drink(id = 1, amountMl = 355, timestampMillis = now - 3_600_000),
                 ),
-                goalOz = 64,
+                goalMl = 1893,
             ),
             snackbarHostState = remember { SnackbarHostState() },
             celebration = rememberGoalCelebrationState(),

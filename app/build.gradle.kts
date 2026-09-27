@@ -22,8 +22,8 @@ android {
         applicationId = "dev.ericferguson.watertracker"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.3.0"
     }
 
     signingConfigs {
@@ -44,8 +44,11 @@ android {
         }
         release {
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
+            // `./gradlew assembleRelease -PreleaseTest` builds a shrunk release APK with its own
+            // app id, so it can be tested on an emulator next to other installs (see README).
+            if (project.hasProperty("releaseTest")) applicationIdSuffix = ".releasetest"
         }
     }
 
