@@ -12,6 +12,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
+- **Home-screen widget:** a 4×1 bar with today's progress and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
@@ -21,7 +22,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - [x] Pace reminders during waking hours
 - [x] Goal-reached celebration
 - [ ] Log a drink at a different time, for drinks you forgot to log when you had them
-- [ ] Home-screen widget with today's progress and quick-add buttons
+- [x] Home-screen widget with today's progress and quick-add buttons
 - [ ] Custom quick-add amounts, to match your own glasses and bottles
 - [ ] CSV export
 - [ ] Write drinks to [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) and see whether Garmin Connect picks them up (on hold)
@@ -42,6 +43,12 @@ Behind the scenes there's one `AlarmManager` alarm at a time, set for the next c
 - Bedtime must be before midnight and at least 3 hours after wake-up.
 - Alarms are inexact (a 10-minute window) and don't need the "Alarms & reminders" permission. If the phone is in deep Doze (idle, screen off, not moving), Android can hold a reminder until its next maintenance window.
 
+## The widget
+
+Long-press your home screen, tap **Widgets**, and find **Water Tracker**. Change the button amounts in **Settings → Widget**.
+
+The widget updates as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
+
 ## Tech stack
 
 | | |
@@ -49,6 +56,7 @@ Behind the scenes there's one `AlarmManager` alarm at a time, set for the next c
 | Language | Kotlin 2.4 |
 | UI | Jetpack Compose, Material 3 |
 | Storage | Room (drink log), DataStore (settings) |
+| Widget | Jetpack Glance |
 | Async | Coroutines and Flow |
 | Build | Gradle 9.7 (Kotlin DSL, version catalog), Android Gradle Plugin 9.4 |
 | Min / target SDK | 26 (Android 8.0) / 37 |
@@ -74,6 +82,10 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── ReminderSchedule.kt  Check times and the next check after a given time
 │   ├── ReminderManager.kt   Sets and cancels the alarm; posts the notification
 │   └── ReminderReceiver.kt  Handles the alarm, boot, app update and time changes
+├── widget/
+│   ├── WaterWidget.kt       Glance widget: total, progress bar, two buttons; tap the text to open the app
+│   ├── AddDrinkAction.kt    Logs a drink when a widget button is tapped
+│   └── WidgetUpdater.kt     Refreshes the widget when drinks or settings change
 └── ui/
     ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>
@@ -81,7 +93,7 @@ app/src/main/java/dev/ericferguson/watertracker/
     ├── HistoryViewModel.kt  Daily totals for the selected period, plus the average and goal-met stats
     ├── HistoryScreen.kt     Period toggle, stat cards, Canvas bar chart and day list
     ├── SettingsViewModel.kt Saves settings, then reschedules the alarm
-    ├── SettingsScreen.kt    Goal, reminders switch (with notification permission), wake/bed time pickers
+    ├── SettingsScreen.kt    Goal, reminders, wake/bed times, widget button amounts
     ├── AmountDialog.kt      Number-of-ounces dialog shared by Today and Settings
     ├── GoalCelebration.kt   Ring bounce and droplet splash when you reach your goal
     └── theme/Theme.kt       Water-blue Material 3 color scheme

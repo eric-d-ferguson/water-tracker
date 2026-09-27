@@ -5,6 +5,7 @@ import dev.ericferguson.watertracker.data.DrinkRepository
 import dev.ericferguson.watertracker.data.SettingsRepository
 import dev.ericferguson.watertracker.data.WaterDatabase
 import dev.ericferguson.watertracker.reminders.ReminderManager
+import dev.ericferguson.watertracker.widget.launchWidgetUpdates
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,5 +24,6 @@ class WaterTrackerApp : Application() {
         reminderManager.createNotificationChannel()
         // Force-stopping the app clears its alarms, so make sure one is set whenever the app starts.
         appScope.launch { reminderManager.reschedule() }
+        appScope.launchWidgetUpdates(this, database, settingsRepository)
     }
 }

@@ -17,6 +17,9 @@ data class ReminderSettings(
     val bedTime: LocalTime = LocalTime.of(22, 0),
 )
 
+/** The amounts logged by the widget's two buttons. */
+data class WidgetButtons(val firstOz: Int = 8, val secondOz: Int = 16)
+
 class SettingsRepository(private val context: Context) {
     val dailyGoalOz: Flow<Int> = context.dataStore.data.map { it[DAILY_GOAL_OZ] ?: DEFAULT_GOAL_OZ }
 
@@ -26,6 +29,14 @@ class SettingsRepository(private val context: Context) {
             enabled = prefs[REMINDERS_ENABLED] ?: defaults.enabled,
             wakeTime = prefs[WAKE_MINUTE]?.let(::timeOfMinute) ?: defaults.wakeTime,
             bedTime = prefs[BED_MINUTE]?.let(::timeOfMinute) ?: defaults.bedTime,
+        )
+    }
+
+    val widgetButtons: Flow<WidgetButtons> = context.dataStore.data.map { prefs ->
+        val defaults = WidgetButtons()
+        WidgetButtons(
+            firstOz = prefs[WIDGET_FIRST_OZ] ?: defaults.firstOz,
+            secondOz = prefs[WIDGET_SECOND_OZ] ?: defaults.secondOz,
         )
     }
 
@@ -45,6 +56,14 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[BED_MINUTE] = minuteOfDay(time) }
     }
 
+    suspend fun setWidgetFirstOz(oz: Int) {
+        context.dataStore.edit { it[WIDGET_FIRST_OZ] = oz }
+    }
+
+    suspend fun setWidgetSecondOz(oz: Int) {
+        context.dataStore.edit { it[WIDGET_SECOND_OZ] = oz }
+    }
+
     companion object {
         const val DEFAULT_GOAL_OZ = 64
         private val DAILY_GOAL_OZ = intPreferencesKey("daily_goal_oz")
@@ -52,6 +71,8 @@ class SettingsRepository(private val context: Context) {
         // Times are stored as minutes after midnight.
         private val WAKE_MINUTE = intPreferencesKey("wake_minute")
         private val BED_MINUTE = intPreferencesKey("bed_minute")
+        private val WIDGET_FIRST_OZ = intPreferencesKey("widget_first_oz")
+        private val WIDGET_SECOND_OZ = intPreferencesKey("widget_second_oz")
     }
 }
 

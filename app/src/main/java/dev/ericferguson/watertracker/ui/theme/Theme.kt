@@ -7,8 +7,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// A fixed water-blue palette rather than wallpaper-based dynamic color.
-private val LightColors = lightColorScheme(
+// A fixed water-blue palette rather than wallpaper-based dynamic color. Also used by the widget.
+internal val LightColors = lightColorScheme(
     primary = Color(0xFF0B6BCB),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFD3E4FF),
@@ -17,7 +17,7 @@ private val LightColors = lightColorScheme(
     onSecondaryContainer = Color(0xFF101C2B),
 )
 
-private val DarkColors = darkColorScheme(
+internal val DarkColors = darkColorScheme(
     primary = Color(0xFFA2C9FF),
     onPrimary = Color(0xFF00315B),
     primaryContainer = Color(0xFF004881),

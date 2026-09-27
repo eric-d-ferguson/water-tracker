@@ -22,6 +22,17 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.WaterWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/water_widget_info" />
+        </receiver>
+
         <!-- Pace-check alarms arrive by explicit intent; these actions trigger a reschedule. -->
         <receiver
             android:name=".reminders.ReminderReceiver"

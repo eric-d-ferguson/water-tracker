@@ -58,6 +58,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 private val GOAL_RANGE = 1..999
+private val DRINK_RANGE = 1..128
 private val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
 /**
@@ -107,6 +108,8 @@ fun SettingsScreen(
         },
         onSetWakeTime = viewModel::setWakeTime,
         onSetBedTime = viewModel::setBedTime,
+        onSetWidgetFirstOz = viewModel::setWidgetFirstOz,
+        onSetWidgetSecondOz = viewModel::setWidgetSecondOz,
     )
 }
 
@@ -121,10 +124,14 @@ fun SettingsContent(
     onOpenNotificationSettings: () -> Unit,
     onSetWakeTime: (LocalTime) -> Unit,
     onSetBedTime: (LocalTime) -> Unit,
+    onSetWidgetFirstOz: (Int) -> Unit,
+    onSetWidgetSecondOz: (Int) -> Unit,
 ) {
     var showGoalDialog by rememberSaveable { mutableStateOf(false) }
     var showWakeDialog by rememberSaveable { mutableStateOf(false) }
     var showBedDialog by rememberSaveable { mutableStateOf(false) }
+    var showWidgetFirstDialog by rememberSaveable { mutableStateOf(false) }
+    var showWidgetSecondDialog by rememberSaveable { mutableStateOf(false) }
     val reminders = state.reminders
 
     Scaffold(
@@ -183,6 +190,25 @@ fun SettingsContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+            HorizontalDivider()
+
+            SectionHeader("Widget")
+            ListItem(
+                headlineContent = { Text("Left button") },
+                supportingContent = { Text("${state.widgetButtons.firstOz} oz") },
+                modifier = Modifier.clickable { showWidgetFirstDialog = true },
+            )
+            ListItem(
+                headlineContent = { Text("Right button") },
+                supportingContent = { Text("${state.widgetButtons.secondOz} oz") },
+                modifier = Modifier.clickable { showWidgetSecondDialog = true },
+            )
+            Text(
+                text = "To add the widget, long-press your home screen, tap Widgets, and find Water Tracker.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
     }
 
@@ -194,6 +220,26 @@ fun SettingsContent(
             confirmLabel = "Save",
             onConfirm = { onSetGoal(it); showGoalDialog = false },
             onDismiss = { showGoalDialog = false },
+        )
+    }
+    if (showWidgetFirstDialog) {
+        AmountDialog(
+            title = "Left widget button",
+            initialValue = state.widgetButtons.firstOz.toString(),
+            range = DRINK_RANGE,
+            confirmLabel = "Save",
+            onConfirm = { onSetWidgetFirstOz(it); showWidgetFirstDialog = false },
+            onDismiss = { showWidgetFirstDialog = false },
+        )
+    }
+    if (showWidgetSecondDialog) {
+        AmountDialog(
+            title = "Right widget button",
+            initialValue = state.widgetButtons.secondOz.toString(),
+            range = DRINK_RANGE,
+            confirmLabel = "Save",
+            onConfirm = { onSetWidgetSecondOz(it); showWidgetSecondDialog = false },
+            onDismiss = { showWidgetSecondDialog = false },
         )
     }
     if (showWakeDialog) {
@@ -316,6 +362,8 @@ private fun SettingsContentPreview() {
             onOpenNotificationSettings = {},
             onSetWakeTime = {},
             onSetBedTime = {},
+            onSetWidgetFirstOz = {},
+            onSetWidgetSecondOz = {},
         )
     }
 }

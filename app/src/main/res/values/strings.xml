@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Water Tracker</string>
+    <string name="widget_description">Today\'s progress with two quick-add buttons</string>
 </resources>

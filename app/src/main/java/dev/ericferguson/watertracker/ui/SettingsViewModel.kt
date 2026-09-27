@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.ericferguson.watertracker.WaterTrackerApp
 import dev.ericferguson.watertracker.data.ReminderSettings
 import dev.ericferguson.watertracker.data.SettingsRepository
+import dev.ericferguson.watertracker.data.WidgetButtons
 import dev.ericferguson.watertracker.reminders.ReminderManager
 import dev.ericferguson.watertracker.reminders.ReminderSchedule
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +21,7 @@ import java.time.LocalTime
 data class SettingsUiState(
     val goalOz: Int = SettingsRepository.DEFAULT_GOAL_OZ,
     val reminders: ReminderSettings = ReminderSettings(),
+    val widgetButtons: WidgetButtons = WidgetButtons(),
 ) {
     val checkTimes: List<LocalTime>
         get() = ReminderSchedule.checkTimes(reminders.wakeTime, reminders.bedTime)
@@ -33,11 +35,20 @@ class SettingsViewModel(
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.dailyGoalOz,
         settingsRepository.reminderSettings,
+        settingsRepository.widgetButtons,
         ::SettingsUiState,
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setGoal(oz: Int) {
         viewModelScope.launch { settingsRepository.setDailyGoalOz(oz) }
+    }
+
+    fun setWidgetFirstOz(oz: Int) {
+        viewModelScope.launch { settingsRepository.setWidgetFirstOz(oz) }
+    }
+
+    fun setWidgetSecondOz(oz: Int) {
+        viewModelScope.launch { settingsRepository.setWidgetSecondOz(oz) }
     }
 
     fun setRemindersEnabled(enabled: Boolean) = updateReminders { settingsRepository.setRemindersEnabled(enabled) }
