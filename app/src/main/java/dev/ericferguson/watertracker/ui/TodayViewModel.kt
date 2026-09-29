@@ -27,10 +27,15 @@ data class TodayUiState(
     val unit: VolumeUnit = VolumeUnit.OZ,
 ) {
     val totalMl: Int get() = drinks.sumOf { it.amountMl }
-    val progress: Float get() = if (goalMl > 0) totalMl.toFloat() / goalMl else 0f
+    val goalMet: Boolean get() = unit.isGoalMet(totalMl, goalMl)
+    /** Can pass 1 once over the goal; never below 1 once the goal counts as met. */
+    val progress: Float get() {
+        val raw = if (goalMl > 0) totalMl.toFloat() / goalMl else 0f
+        return if (goalMet) maxOf(raw, 1f) else raw
+    }
 
     /** True if adding [ml] takes the total from under the goal to at or over it. */
-    fun reachesGoalWith(ml: Int): Boolean = totalMl < goalMl && totalMl + ml >= goalMl
+    fun reachesGoalWith(ml: Int): Boolean = !goalMet && unit.isGoalMet(totalMl + ml, goalMl)
 }
 
 class TodayViewModel(

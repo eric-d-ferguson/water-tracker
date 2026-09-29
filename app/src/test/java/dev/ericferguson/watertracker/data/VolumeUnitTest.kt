@@ -1,6 +1,8 @@
 package dev.ericferguson.watertracker.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -39,5 +41,21 @@ class VolumeUnitTest {
         assertEquals(VolumeUnit.OZ, VolumeUnit.defaultFor(Locale.US))
         assertEquals(VolumeUnit.ML, VolumeUnit.defaultFor(Locale.UK))
         assertEquals(VolumeUnit.ML, VolumeUnit.defaultFor(Locale.GERMANY))
+    }
+
+    @Test
+    fun goalIsJudgedAsDisplayed() {
+        val goal = VolumeUnit.OZ.toMl(80) // 2366 ml
+        assertTrue(VolumeUnit.OZ.isGoalMet(5 * VolumeUnit.OZ.toMl(16), goal)) // 2365 ml, shows 80 oz
+        assertTrue(VolumeUnit.OZ.isGoalMet(4 * VolumeUnit.OZ.toMl(20), goal)) // 2364 ml, shows 80 oz
+        assertFalse(VolumeUnit.OZ.isGoalMet(VolumeUnit.OZ.toMl(79), goal))
+        assertTrue(VolumeUnit.ML.isGoalMet(2000, 2000))
+        assertFalse(VolumeUnit.ML.isGoalMet(1999, 2000))
+    }
+
+    @Test
+    fun percentOfGoalIsInTheDisplayedUnit() {
+        assertEquals(100, VolumeUnit.OZ.percentOfGoal(5 * VolumeUnit.OZ.toMl(16), VolumeUnit.OZ.toMl(80)))
+        assertEquals(50, VolumeUnit.OZ.percentOfGoal(VolumeUnit.OZ.toMl(40), VolumeUnit.OZ.toMl(80)))
     }
 }

@@ -90,8 +90,13 @@ class WaterWidgetReceiver : GlanceAppWidgetReceiver() {
 @Composable
 private fun WidgetContent(state: WidgetState) {
     val unit = state.unit
-    val progress = if (state.goalMl > 0) (state.totalMl.toFloat() / state.goalMl).coerceIn(0f, 1f) else 0f
-    val label = if (state.totalMl >= state.goalMl) {
+    val goalMet = unit.isGoalMet(state.totalMl, state.goalMl)
+    val progress = when {
+        goalMet -> 1f
+        state.goalMl > 0 -> (state.totalMl.toFloat() / state.goalMl).coerceIn(0f, 1f)
+        else -> 0f
+    }
+    val label = if (goalMet) {
         "${unit.format(state.totalMl)} · Goal reached!"
     } else {
         "${unit.fromMl(state.totalMl)} / ${unit.format(state.goalMl)}"

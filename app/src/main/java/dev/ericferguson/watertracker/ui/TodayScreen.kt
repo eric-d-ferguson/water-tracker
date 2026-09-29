@@ -146,7 +146,7 @@ fun TodayContent(
                     progress = state.progress,
                     total = state.unit.format(state.totalMl),
                     goal = state.unit.format(state.goalMl),
-                    goalReached = state.totalMl >= state.goalMl,
+                    goalReached = state.goalMet,
                     celebration = celebration,
                     modifier = Modifier
                         .fillMaxWidth()

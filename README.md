@@ -209,7 +209,7 @@ Increase `versionCode` (and `versionName`) in `app/build.gradle.kts`, rebuild, a
 
 ## Units and your data
 
-Amounts are always **stored in whole milliliters**. Ounces are only a display unit, so switching back and forth never loses precision. 8 oz is stored as 237 ml and still shows as 8 oz. Switching units rounds your goal to a tidy number (whole ounces, or the nearest 50 ml) and resets the widget buttons to that unit's defaults.
+Amounts are always **stored in whole milliliters**. Ounces are only a display unit, so switching back and forth never loses precision. 8 oz is stored as 237 ml and still shows as 8 oz. Whether you've met your goal is judged in the unit you see: five 16 oz drinks add up to 2365 ml against 2366 ml for an 80 oz goal, but both show as 80 oz, so it counts as met. Switching units rounds your goal to a tidy number (whole ounces, or the nearest 50 ml) and resets the widget buttons to that unit's defaults.
 
 **Export** (Settings → Data) writes one row per drink:
 

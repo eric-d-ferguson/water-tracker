@@ -42,7 +42,7 @@ data class HistoryUiState(
             .takeIf { it.isNotEmpty() }
             ?.let { logged -> logged.sumOf { it.totalMl } / logged.size }
 
-    val daysGoalMet: Int get() = days.count { it.totalMl >= goalMl }
+    val daysGoalMet: Int get() = days.count { unit.isGoalMet(it.totalMl, goalMl) }
 }
 
 class HistoryViewModel(

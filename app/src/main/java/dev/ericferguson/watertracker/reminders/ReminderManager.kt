@@ -70,10 +70,13 @@ class ReminderManager(
         val now = LocalDateTime.now(clock())
         val goalMl = settings.dailyGoalMl.first()
         val totalMl = drinks.totalOn(now.toLocalDate())
+        val unit = settings.unit.first()
+        // Judged as displayed, so "80 of 80 oz" counts as done (see VolumeUnit.isGoalMet).
+        if (unit.isGoalMet(totalMl, goalMl)) return
         val time = now.toLocalTime()
         if (Pace.shouldRemind(time, reminder.wakeTime, reminder.bedTime, goalMl, totalMl)) {
             val targetMl = Pace.target(time, reminder.wakeTime, reminder.bedTime, goalMl)
-            showReminder(settings.unit.first(), totalMl, targetMl)
+            showReminder(unit, totalMl, targetMl)
         }
     }
 

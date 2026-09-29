@@ -110,6 +110,7 @@ fun HistoryContent(state: HistoryUiState, onSelectPeriod: (HistoryPeriod) -> Uni
                 DailyBarChart(
                     days = state.days,
                     goalMl = state.goalMl,
+                    unit = state.unit,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
@@ -150,7 +151,7 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
  * Labels are narrow weekday names for a week; for a month, every 7th day counting back from today.
  */
 @Composable
-private fun DailyBarChart(days: List<DailyTotal>, goalMl: Int, modifier: Modifier = Modifier) {
+private fun DailyBarChart(days: List<DailyTotal>, goalMl: Int, unit: VolumeUnit, modifier: Modifier = Modifier) {
     if (days.isEmpty()) return
 
     val metColor = MaterialTheme.colorScheme.primary
@@ -179,7 +180,7 @@ private fun DailyBarChart(days: List<DailyTotal>, goalMl: Int, modifier: Modifie
             val barHeight = chartHeight * day.totalMl / scaleMax
             if (barHeight > 0f) {
                 drawRoundRect(
-                    color = if (day.totalMl >= goalMl) metColor else unmetColor,
+                    color = if (unit.isGoalMet(day.totalMl, goalMl)) metColor else unmetColor,
                     topLeft = Offset(slotLeft + (slotWidth - barWidth) / 2, chartHeight - barHeight),
                     size = Size(barWidth, barHeight),
                     cornerRadius = corner,
@@ -226,8 +227,8 @@ private fun DayRow(day: DailyTotal, goalMl: Int, unit: VolumeUnit, today: LocalD
         today?.minusDays(1) -> "Yesterday"
         else -> dayFormatter.format(day.date)
     }
-    val percent = if (goalMl > 0) day.totalMl * 100 / goalMl else 0
-    val metGoal = day.totalMl >= goalMl
+    val percent = unit.percentOfGoal(day.totalMl, goalMl)
+    val metGoal = unit.isGoalMet(day.totalMl, goalMl)
 
     ListItem(
         headlineContent = { Text(label) },
