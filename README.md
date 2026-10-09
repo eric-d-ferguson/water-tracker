@@ -9,11 +9,12 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - **Ounces or milliliters:** pick a unit in Settings. It defaults to oz in the US and ml elsewhere.
 - One-tap logging (8, 12, 16 or 20 oz, or 250, 350, 500 or 750 ml), plus a custom amount
 - Daily goal (64 oz or 2000 ml by default, change it in Settings) with a progress ring
+- **Pace indicator:** a tick on the ring and an "On pace" line show where you should be by now, based on your wake-up time and bedtime (see [How reminders work](#how-reminders-work) for the pace)
 - Undo from the snackbar, or remove any entry from today's list
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
-- **Home-screen widget:** a 4×1 bar with today's progress and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
+- **Home-screen widget:** a 4×1 bar with today's progress, your pace, and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
 - **CSV export and import:** save all your drinks to a file, or merge them back in (for example on a new phone). Drinks already in the app are skipped.
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
@@ -32,7 +33,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 
 ## How reminders work
 
-Turn on **Pace reminders** in Settings (the gear icon on Today) and set your wake-up time and bedtime.
+Set your wake-up time and bedtime under **Your day** in Settings (the gear icon on Today), then turn on **Pace reminders**. The same pace drives the indicator on Today and the widget, whether or not reminders are on.
 
 - **Pace:** your target climbs in a straight line from 0 oz at wake-up to your full goal **an hour before bedtime**. With 7 AM–10 PM and an 80 oz goal, you should be at 40 oz by 2 PM.
 - **Checks** happen every 2 hours after wake-up, and none at or after bedtime. For 7 AM–10 PM that's 9, 11, 1, 3, 5, 7 and 9.

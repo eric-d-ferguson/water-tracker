@@ -73,4 +73,15 @@ class TodayUiStateTest {
         val state = TodayUiState(ozDrinks(16, 16, 16, 16, 15), goalMl = eightyOz, unit = VolumeUnit.OZ)
         assertFalse(state.goalMet)
     }
+
+    @Test
+    fun paceProgressIsFractionOfGoal() {
+        assertEquals(0.5f, TodayUiState(goalMl = 2000, unit = VolumeUnit.ML, paceMl = 1000).paceProgress, 0.0001f)
+    }
+
+    @Test
+    fun paceProgressStaysWithinTheRing() {
+        assertEquals(1f, TodayUiState(goalMl = 2000, unit = VolumeUnit.ML, paceMl = 2500).paceProgress)
+        assertEquals(0f, TodayUiState(goalMl = 0, unit = VolumeUnit.ML, paceMl = 500).paceProgress)
+    }
 }
