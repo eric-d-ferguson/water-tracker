@@ -39,26 +39,35 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import dev.ericferguson.watertracker.MainActivity
 import dev.ericferguson.watertracker.WaterTrackerApp
+import dev.ericferguson.watertracker.data.ReminderSettings
 import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.data.WidgetButtons
+import dev.ericferguson.watertracker.reminders.Pace
 import dev.ericferguson.watertracker.ui.theme.DarkColors
 import dev.ericferguson.watertracker.ui.theme.LightColors
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalTime
 
 private val WidgetColors = ColorProviders(light = LightColors, dark = DarkColors)
 
-private data class WidgetState(val totalMl: Int, val goalMl: Int, val buttons: WidgetButtons, val unit: VolumeUnit)
+private data class WidgetState(
+    val totalMl: Int,
+    val goalMl: Int,
+    val buttons: WidgetButtons,
+    val unit: VolumeUnit,
+    val day: ReminderSettings,
+)
 
 /**
- * A 4x1 home-screen widget: today's total, a progress bar, and two quick-add buttons.
+ * A 4x1 home-screen widget: today's total and pace, a progress bar, and two quick-add buttons.
  *
  * Glance keeps a session running for a short while after the widget is shown or tapped. During
  * a session, updates recompose the existing content rather than calling provideGlance again, so
  * the content collects live data. Outside a session, WidgetUpdater starts a new one on every
- * change, and the system refreshes it every 30 minutes to catch the new day.
+ * change, and the system refreshes it every 30 minutes to catch the new day and move the pace.
  */
 class WaterWidget : GlanceAppWidget() {
 
@@ -69,6 +78,7 @@ class WaterWidget : GlanceAppWidget() {
             app.settingsRepository.dailyGoalMl,
             app.settingsRepository.widgetButtons,
             app.settingsRepository.unit,
+            app.settingsRepository.reminderSettings,
             ::WidgetState,
         )
         // Load the first value up front so the widget never flashes placeholder numbers.
@@ -101,6 +111,8 @@ private fun WidgetContent(state: WidgetState) {
     } else {
         "${unit.fromMl(state.totalMl)} / ${unit.format(state.goalMl)}"
     }
+    // Worked out when the widget is drawn, so each refresh shows the pace for that moment.
+    val paceMl = Pace.target(LocalTime.now(), state.day.wakeTime, state.day.bedTime, state.goalMl)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -113,15 +125,25 @@ private fun WidgetContent(state: WidgetState) {
     ) {
         // Tapping the text or bar opens the app.
         Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>())) {
-            Text(
-                text = label,
-                maxLines = 1,
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = GlanceModifier.fillMaxWidth()) {
+                Text(
+                    text = label,
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    modifier = GlanceModifier.defaultWeight(),
+                )
+                if (!goalMet) {
+                    Text(
+                        text = "Pace ${unit.format(paceMl)}",
+                        maxLines = 1,
+                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp),
+                    )
+                }
+            }
             Spacer(GlanceModifier.height(6.dp))
             LinearProgressIndicator(
                 progress = progress,

@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,9 +58,12 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.cos
+import kotlin.math.sin
 
 private val RING_SIZE = 220.dp
 private val RING_STROKE = 20.dp
+private val PACE_MARK_WIDTH = 4.dp
 
 /** Stateful entry point: wires the ViewModel to the stateless [TodayContent]. */
 @Composable
@@ -147,6 +151,8 @@ fun TodayContent(
                     total = state.unit.format(state.totalMl),
                     goal = state.unit.format(state.goalMl),
                     goalReached = state.goalMet,
+                    paceProgress = state.paceProgress,
+                    pace = state.unit.format(state.paceMl),
                     celebration = celebration,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,6 +204,8 @@ private fun ProgressRing(
     total: String,
     goal: String,
     goalReached: Boolean,
+    paceProgress: Float,
+    pace: String,
     celebration: GoalCelebrationState,
     modifier: Modifier = Modifier,
 ) {
@@ -205,6 +213,7 @@ private fun ProgressRing(
     val animated by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), label = "progress")
     val trackColor = MaterialTheme.colorScheme.primaryContainer
     val fillColor = MaterialTheme.colorScheme.primary
+    val paceColor = MaterialTheme.colorScheme.onSurface
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Box(
@@ -219,6 +228,20 @@ private fun ProgressRing(
                 val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
                 drawArc(color = trackColor, startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
                 drawArc(color = fillColor, startAngle = -90f, sweepAngle = 360f * animated, useCenter = false, style = stroke)
+                // A tick across the ring where the pace says you should be by now.
+                if (!goalReached && paceProgress > 0f) {
+                    val angle = Math.toRadians(-90.0 + 360.0 * paceProgress)
+                    val direction = Offset(cos(angle).toFloat(), sin(angle).toFloat())
+                    val radius = size.minDimension / 2
+                    val halfLength = RING_STROKE.toPx() * 0.65f
+                    drawLine(
+                        color = paceColor,
+                        start = center + direction * (radius - halfLength),
+                        end = center + direction * (radius + halfLength),
+                        strokeWidth = PACE_MARK_WIDTH.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(total, style = MaterialTheme.typography.displayMedium)
@@ -227,6 +250,14 @@ private fun ProgressRing(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (!goalReached) {
+                    Text(
+                        text = "On pace: $pace",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
         GoalSplash(state = celebration, ringStroke = RING_STROKE, modifier = Modifier.size(RING_SIZE))
@@ -281,6 +312,7 @@ private fun TodayContentPreview() {
                     Drink(id = 1, amountMl = 355, timestampMillis = now - 3_600_000),
                 ),
                 goalMl = 1893,
+                paceMl = 1100,
             ),
             snackbarHostState = remember { SnackbarHostState() },
             celebration = rememberGoalCelebrationState(),
