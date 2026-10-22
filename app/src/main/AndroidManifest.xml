@@ -24,13 +24,26 @@
 
         <receiver
             android:name=".widget.WaterWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_bar_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/water_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GlassWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_glass_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/glass_widget_info" />
         </receiver>
 
         <!-- Pace-check alarms arrive by explicit intent; these actions trigger a reschedule. -->

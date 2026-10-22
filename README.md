@@ -13,7 +13,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
-- **Home-screen widget:** a 4×1 bar with today's progress and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
+- **Home-screen widgets:** a 4×1 **Progress bar** and a 1×2 **Water glass** that fills up as you drink, each with two quick-add buttons. You set the amounts in Settings (8 and 16 oz to start).
 - **CSV export and import:** save all your drinks to a file, or merge them back in (for example on a new phone). Drinks already in the app are skipped.
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
@@ -46,11 +46,18 @@ Behind the scenes there's one `AlarmManager` alarm at a time, set for the next c
 - Bedtime must be before midnight and at least 3 hours after wake-up.
 - Alarms are inexact (a 10-minute window) and don't need the "Alarms & reminders" permission. If the phone is in deep Doze (idle, screen off, not moving), Android can hold a reminder until its next maintenance window.
 
-## The widget
+## The widgets
 
-Long-press your home screen, tap **Widgets**, and find **Water Tracker**. Change the button amounts in **Settings → Widget**.
+Long-press your home screen, tap **Widgets**, and find **Water Tracker**. There are two:
 
-The widget updates as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
+- **Progress bar (4×1):** today's total and a progress bar, with the buttons to the right.
+- **Water glass (1×2):** a glass that fills from the bottom, with the buttons stacked underneath. Stretch it taller for a bigger glass.
+
+Both use the same two button amounts, which you change in **Settings → Widget**.
+
+**Previews in the widget picker.** Each widget has a static preview layout with sample numbers (`res/layout/widget_preview_*.xml`), so the picker shows what the widget looks like instead of the app icon. On Android 15+, the app also publishes generated previews using your own goal, unit and buttons (`WidgetPreviews.kt`). It does this once per app version and whenever you switch units, because Android rate-limits it. Launchers don't always pick up a newly published preview until that widget has been placed at least once, which is why the static fallback exists.
+
+The widgets update as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
 
 ## Tech stack
 
@@ -89,9 +96,12 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── ReminderManager.kt   Sets and cancels the alarm; posts the notification
 │   └── ReminderReceiver.kt  Handles the alarm, boot, app update and time changes
 ├── widget/
-│   ├── WaterWidget.kt       Glance widget: total, progress bar, two buttons; tap the text to open the app
+│   ├── WidgetShared.kt      Live data, colors and the quick-add button shared by both widgets
+│   ├── WaterWidget.kt       4x1 "Progress bar" widget; tap the text to open the app
+│   ├── GlassWidget.kt       1x2 "Water glass" widget, laid out from its actual size
+│   ├── WidgetPreviews.kt    Publishes generated widget-picker previews (Android 15+)
 │   ├── AddDrinkAction.kt    Logs a drink when a widget button is tapped
-│   └── WidgetUpdater.kt     Refreshes the widget when drinks or settings change
+│   └── WidgetUpdater.kt     Refreshes both widgets when drinks or settings change
 └── ui/
     ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>
