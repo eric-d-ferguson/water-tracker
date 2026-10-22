@@ -73,4 +73,10 @@ class TodayUiStateTest {
         val state = TodayUiState(ozDrinks(16, 16, 16, 16, 15), goalMl = eightyOz, unit = VolumeUnit.OZ)
         assertFalse(state.goalMet)
     }
+
+    @Test
+    fun behindAmountMatchesTheDisplayedNumbers() {
+        val state = TodayUiState(ozDrinks(16, 16), goalMl = eightyOz, unit = VolumeUnit.OZ, paceTargetMl = VolumeUnit.OZ.toMl(44))
+        assertEquals(12, state.behindPaceAmount) // 44 - 32
+    }
 }

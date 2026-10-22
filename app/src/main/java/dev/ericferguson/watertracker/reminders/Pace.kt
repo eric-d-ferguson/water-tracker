@@ -1,5 +1,7 @@
 package dev.ericferguson.watertracker.reminders
 
+import dev.ericferguson.watertracker.data.ReminderSettings
+import dev.ericferguson.watertracker.data.VolumeUnit
 import java.time.Duration
 import java.time.LocalTime
 import kotlin.math.ceil
@@ -31,4 +33,15 @@ object Pace {
     }
 
     fun behindThreshold(goal: Int): Int = ceil(goal * BEHIND_FRACTION).toInt()
+}
+
+/**
+ * Where you should be by [now], if you're far enough behind to be told about it, otherwise null:
+ * on pace, goal met (judged in [unit], as displayed), or outside waking hours. The reminder
+ * notification and the Today screen both use this, so they always agree.
+ */
+fun paceTargetIfBehind(now: LocalTime, reminders: ReminderSettings, goalMl: Int, totalMl: Int, unit: VolumeUnit): Int? {
+    if (unit.isGoalMet(totalMl, goalMl)) return null
+    if (!Pace.shouldRemind(now, reminders.wakeTime, reminders.bedTime, goalMl, totalMl)) return null
+    return Pace.target(now, reminders.wakeTime, reminders.bedTime, goalMl)
 }

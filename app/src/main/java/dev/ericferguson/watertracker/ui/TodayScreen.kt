@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,6 +58,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.cos
+import kotlin.math.sin
 
 private val RING_SIZE = 220.dp
 private val RING_STROKE = 20.dp
@@ -142,16 +145,32 @@ fun TodayContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                ProgressRing(
-                    progress = state.progress,
-                    total = state.unit.format(state.totalMl),
-                    goal = state.unit.format(state.goalMl),
-                    goalReached = state.goalMet,
-                    celebration = celebration,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 24.dp),
-                )
+                ) {
+                    ProgressRing(
+                        progress = state.progress,
+                        paceFraction = state.paceTargetMl?.let { (it.toFloat() / state.goalMl).coerceIn(0f, 1f) },
+                        total = state.unit.format(state.totalMl),
+                        goal = state.unit.format(state.goalMl),
+                        goalReached = state.goalMet,
+                        celebration = celebration,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    val target = state.paceTargetMl
+                    val behind = state.behindPaceAmount
+                    if (target != null && behind != null) {
+                        Text(
+                            text = "Aim for ${state.unit.format(target)} by now · $behind ${state.unit.label} behind",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                    }
+                }
             }
             item {
                 QuickAddButtons(unit = state.unit, onAdd = onAdd, onCustom = { showCustomDialog = true })
@@ -195,6 +214,8 @@ fun TodayContent(
 @Composable
 private fun ProgressRing(
     progress: Float,
+    /** Where the pace marker goes, 0 to 1 around the ring; null hides it. */
+    paceFraction: Float?,
     total: String,
     goal: String,
     goalReached: Boolean,
@@ -205,6 +226,8 @@ private fun ProgressRing(
     val animated by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), label = "progress")
     val trackColor = MaterialTheme.colorScheme.primaryContainer
     val fillColor = MaterialTheme.colorScheme.primary
+    val markerFill = MaterialTheme.colorScheme.surface
+    val markerOutline = MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Box(
@@ -219,6 +242,24 @@ private fun ProgressRing(
                 val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
                 drawArc(color = trackColor, startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
                 drawArc(color = fillColor, startAngle = -90f, sweepAngle = 360f * animated, useCenter = false, style = stroke)
+                if (paceFraction != null) {
+                    // A notch on the ring at the pace target. The arc's stroke is centered on a
+                    // circle of half the canvas size, starting at 12 o'clock.
+                    val angle = Math.toRadians(-90.0 + 360.0 * paceFraction)
+                    val ringRadius = size.minDimension / 2
+                    val markerCenter = center + Offset(
+                        x = (cos(angle) * ringRadius).toFloat(),
+                        y = (sin(angle) * ringRadius).toFloat(),
+                    )
+                    val markerRadius = RING_STROKE.toPx() * 0.45f
+                    drawCircle(color = markerFill, radius = markerRadius, center = markerCenter)
+                    drawCircle(
+                        color = markerOutline,
+                        radius = markerRadius,
+                        center = markerCenter,
+                        style = Stroke(width = 3.dp.toPx()),
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(total, style = MaterialTheme.typography.displayMedium)
@@ -281,6 +322,7 @@ private fun TodayContentPreview() {
                     Drink(id = 1, amountMl = 355, timestampMillis = now - 3_600_000),
                 ),
                 goalMl = 1893,
+                paceTargetMl = 1301,
             ),
             snackbarHostState = remember { SnackbarHostState() },
             celebration = rememberGoalCelebrationState(),

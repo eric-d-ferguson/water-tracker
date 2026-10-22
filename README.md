@@ -15,6 +15,7 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
 - **Home-screen widgets:** a 4×1 **Progress bar** and a 1×2 **Water glass** that fills up as you drink, each with two quick-add buttons. You set the amounts in Settings (8 and 16 oz to start).
 - **CSV export and import:** save all your drinks to a file, or merge them back in (for example on a new phone). Drinks already in the app are skipped.
+- **Behind-pace marker:** when you're behind, a notch on Today's ring marks where you should be, with a line like "Aim for 44 oz by now · 12 oz behind"
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
@@ -38,6 +39,7 @@ Turn on **Pace reminders** in Settings (the gear icon on Today) and set your wak
 - **Checks** happen every 2 hours after wake-up, and none at or after bedtime. For 7 AM–10 PM that's 9, 11, 1, 3, 5, 7 and 9.
 - **You get a reminder** only if you're behind pace by **at least 10% of your goal** (8 oz for an 80 oz goal). A new reminder replaces an unread one.
 - **Reminders stop for the day** once you reach your goal.
+- **The Today screen uses the same rule** (`paceTargetIfBehind` in `Pace.kt`): when you're at least 10% behind, a marker on the ring shows where you should be. It works even with reminders turned off, using your wake-up and bedtime, and updates every minute.
 
 Behind the scenes there's one `AlarmManager` alarm at a time, set for the next check. When it fires, `ReminderReceiver` checks your pace, notifies you if needed, and sets the next alarm. The alarm is also re-set after a reboot, an app update, a clock or time-zone change, and every time the app starts.
 
