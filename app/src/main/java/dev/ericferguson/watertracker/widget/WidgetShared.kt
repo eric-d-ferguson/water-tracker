@@ -27,16 +27,29 @@ import androidx.glance.text.TextStyle
 import dev.ericferguson.watertracker.WaterTrackerApp
 import dev.ericferguson.watertracker.data.VolumeUnit
 import dev.ericferguson.watertracker.data.WidgetButtons
+import dev.ericferguson.watertracker.reminders.paceTargetIfBehind
 import dev.ericferguson.watertracker.ui.theme.DarkColors
 import dev.ericferguson.watertracker.ui.theme.LightColors
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalTime
 
 /** Everything both widgets show. Amounts are in ml; [unit] says how to show them. */
-internal data class WidgetState(val totalMl: Int, val goalMl: Int, val buttons: WidgetButtons, val unit: VolumeUnit) {
+internal data class WidgetState(
+    val totalMl: Int,
+    val goalMl: Int,
+    val buttons: WidgetButtons,
+    val unit: VolumeUnit,
+    /** Where the pace says you should be, only when you're far enough behind to show it. */
+    val paceTargetMl: Int? = null,
+) {
     val goalMet: Boolean get() = unit.isGoalMet(totalMl, goalMl)
+
+    /** Where the pace marker goes, 0 to 1 along the bar; null hides it. */
+    val paceFraction: Float?
+        get() = paceTargetMl?.let { if (goalMl > 0) (it.toFloat() / goalMl).coerceIn(0f, 1f) else null }
 
     /** 0 to 1 for drawing; full once the goal counts as met. */
     val progress: Float
@@ -53,7 +66,8 @@ internal data class WidgetState(val totalMl: Int, val goalMl: Int, val buttons: 
  * Glance keeps a session running for a short while after a widget is shown or tapped. During a
  * session, updates recompose the existing content rather than calling provideGlance again, so
  * the content collects live data. Outside a session, WidgetUpdater starts a new one on every
- * change, and the system refreshes widgets every 30 minutes to catch the new day.
+ * change, and the system refreshes widgets every 30 minutes to catch the new day and move the
+ * pace marker along.
  */
 internal suspend fun GlanceAppWidget.provideWaterContent(
     context: Context,
@@ -65,8 +79,12 @@ internal suspend fun GlanceAppWidget.provideWaterContent(
         app.settingsRepository.dailyGoalMl,
         app.settingsRepository.widgetButtons,
         app.settingsRepository.unit,
-        ::WidgetState,
-    )
+        app.settingsRepository.reminderSettings,
+    ) { totalMl, goalMl, buttons, unit, reminders ->
+        // Same rule as the Today screen, as of when the widget is updated.
+        val paceTargetMl = paceTargetIfBehind(LocalTime.now(), reminders, goalMl, totalMl, unit)
+        WidgetState(totalMl, goalMl, buttons, unit, paceTargetMl)
+    }
     // Load the first value up front so the widget never flashes placeholder numbers.
     val initial = state.first()
 
