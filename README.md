@@ -9,13 +9,13 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 - **Ounces or milliliters:** pick a unit in Settings. It defaults to oz in the US and ml elsewhere.
 - One-tap logging (8, 12, 16 or 20 oz, or 250, 350, 500 or 750 ml), plus a custom amount
 - Daily goal (64 oz or 2000 ml by default, change it in Settings) with a progress ring
-- **Pace indicator:** a tick on the ring and an "On pace" line show where you should be by now, based on your wake-up time and bedtime (see [How reminders work](#how-reminders-work) for the pace)
 - Undo from the snackbar, or remove any entry from today's list
 - **Goal celebration:** when a drink takes you over your goal, the ring bounces, droplets splash out and the phone gives a short buzz
 - Today's total resets automatically at local midnight, and daylight-saving days are handled correctly
 - **History tab:** a 7-day or 30-day bar chart with a goal line, your daily average, how many days you met your goal, and a total for each day
-- **Home-screen widget:** a 4×1 bar with today's progress, your pace, and two quick-add buttons, with amounts you set in Settings (8 and 16 oz to start)
+- **Home-screen widgets:** a 4×1 **Progress bar** and a 1×2 **Water glass** that fills up as you drink, each with two quick-add buttons. You set the amounts in Settings (8 and 16 oz to start).
 - **CSV export and import:** save all your drinks to a file, or merge them back in (for example on a new phone). Drinks already in the app are skipped.
+- **Behind-pace marker:** when you're behind, a notch on Today's ring marks where you should be, with a line like "Aim for 44 oz by now · 12 oz behind". The Progress bar widget shows the same notch on its bar.
 - **Pace reminders:** a notification when you fall behind (see [How reminders work](#how-reminders-work))
 - Light and dark themes
 
@@ -33,12 +33,13 @@ It has no ads, no account and no internet access. Your data stays on your phone 
 
 ## How reminders work
 
-Set your wake-up time and bedtime under **Your day** in Settings (the gear icon on Today), then turn on **Pace reminders**. The same pace drives the indicator on Today and the widget, whether or not reminders are on.
+Set your wake-up time and bedtime under **Your day** in Settings (the gear icon on Today), then turn on **Pace reminders**. The same pace drives the behind-pace marker on Today and the Progress bar widget, whether or not reminders are on.
 
 - **Pace:** your target climbs in a straight line from 0 oz at wake-up to your full goal **an hour before bedtime**. With 7 AM–10 PM and an 80 oz goal, you should be at 40 oz by 2 PM.
 - **Checks** happen every 2 hours after wake-up, and none at or after bedtime. For 7 AM–10 PM that's 9, 11, 1, 3, 5, 7 and 9.
 - **You get a reminder** only if you're behind pace by **at least 10% of your goal** (8 oz for an 80 oz goal). A new reminder replaces an unread one.
 - **Reminders stop for the day** once you reach your goal.
+- **The Today screen and the Progress bar widget use the same rule** (`paceTargetIfBehind` in `Pace.kt`): when you're at least 10% behind, a marker on the ring or bar shows where you should be. It works even with reminders turned off, using your wake-up and bedtime. Today updates every minute; the widget updates at least every 30 minutes.
 
 Behind the scenes there's one `AlarmManager` alarm at a time, set for the next check. When it fires, `ReminderReceiver` checks your pace, notifies you if needed, and sets the next alarm. The alarm is also re-set after a reboot, an app update, a clock or time-zone change, and every time the app starts.
 
@@ -47,11 +48,18 @@ Behind the scenes there's one `AlarmManager` alarm at a time, set for the next c
 - Bedtime must be before midnight and at least 3 hours after wake-up.
 - Alarms are inexact (a 10-minute window) and don't need the "Alarms & reminders" permission. If the phone is in deep Doze (idle, screen off, not moving), Android can hold a reminder until its next maintenance window.
 
-## The widget
+## The widgets
 
-Long-press your home screen, tap **Widgets**, and find **Water Tracker**. Change the button amounts in **Settings → Widget**.
+Long-press your home screen, tap **Widgets**, and find **Water Tracker**. There are two:
 
-The widget updates as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
+- **Progress bar (4×1):** today's total and a progress bar, with the buttons to the right.
+- **Water glass (1×2):** a glass that fills from the bottom, with the buttons stacked underneath. Stretch it taller for a bigger glass.
+
+Both use the same two button amounts, which you change in **Settings → Widget**.
+
+**Previews in the widget picker.** Each widget has a static preview layout with sample numbers (`res/layout/widget_preview_*.xml`), so the picker shows what the widget looks like instead of the app icon. On Android 15+, the app also publishes generated previews using your own goal, unit and buttons (`WidgetPreviews.kt`). It does this once per app version and whenever you switch units, because Android rate-limits it. Launchers don't always pick up a newly published preview until that widget has been placed at least once, which is why the static fallback exists.
+
+The widgets update as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
 
 ## Tech stack
 
@@ -90,9 +98,12 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── ReminderManager.kt   Sets and cancels the alarm; posts the notification
 │   └── ReminderReceiver.kt  Handles the alarm, boot, app update and time changes
 ├── widget/
-│   ├── WaterWidget.kt       Glance widget: total, progress bar, two buttons; tap the text to open the app
+│   ├── WidgetShared.kt      Live data, colors and the quick-add button shared by both widgets
+│   ├── WaterWidget.kt       4x1 "Progress bar" widget; tap the text to open the app
+│   ├── GlassWidget.kt       1x2 "Water glass" widget, laid out from its actual size
+│   ├── WidgetPreviews.kt    Publishes generated widget-picker previews (Android 15+)
 │   ├── AddDrinkAction.kt    Logs a drink when a widget button is tapped
-│   └── WidgetUpdater.kt     Refreshes the widget when drinks or settings change
+│   └── WidgetUpdater.kt     Refreshes both widgets when drinks or settings change
 └── ui/
     ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>

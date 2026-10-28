@@ -218,8 +218,8 @@ fun SettingsContent(
                 modifier = Modifier.clickable { showBedDialog = true },
             )
             Text(
-                text = "Your pace climbs from 0 at wake-up to your full goal an hour before bedtime. " +
-                    "It's shown on Today and the widget.",
+                text = "Your pace climbs from 0 at wake-up to your full goal an hour before bedtime. When you're " +
+                    "10% of your goal or more behind, Today and the Progress bar widget mark where you should be.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

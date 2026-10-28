@@ -1,0 +1,8 @@
+<resources>
+    <color name="preview_background">#273340</color>
+    <color name="preview_primary">#A2C9FF</color>
+    <color name="preview_primary_container">#004881</color>
+    <color name="preview_on_primary">#00315B</color>
+    <color name="preview_on_surface">#E2E2E6</color>
+    <color name="preview_on_surface_variant">#C3C6CF</color>
+</resources>

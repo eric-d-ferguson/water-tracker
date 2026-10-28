@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Water Tracker</string>
+    <string name="widget_bar_name">Progress bar</string>
     <string name="widget_description">Today\'s progress with two quick-add buttons</string>
+    <string name="widget_glass_name">Water glass</string>
+    <string name="widget_glass_description">A glass that fills up as you drink, with two quick-add buttons</string>
 </resources>

@@ -10,7 +10,7 @@ import dev.ericferguson.watertracker.data.Drink
 import dev.ericferguson.watertracker.data.DrinkRepository
 import dev.ericferguson.watertracker.data.SettingsRepository
 import dev.ericferguson.watertracker.data.VolumeUnit
-import dev.ericferguson.watertracker.reminders.Pace
+import dev.ericferguson.watertracker.reminders.paceTargetIfBehind
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -30,8 +30,8 @@ data class TodayUiState(
     val drinks: List<Drink> = emptyList(),
     val goalMl: Int = VolumeUnit.OZ.defaultGoalMl,
     val unit: VolumeUnit = VolumeUnit.OZ,
-    /** Where the pace says you should be by now (see [Pace.target]). */
-    val paceMl: Int = 0,
+    /** Where the pace says you should be, only when you're far enough behind to show it. */
+    val paceTargetMl: Int? = null,
 ) {
     val totalMl: Int get() = drinks.sumOf { it.amountMl }
     val goalMet: Boolean get() = unit.isGoalMet(totalMl, goalMl)
@@ -41,8 +41,9 @@ data class TodayUiState(
         return if (goalMet) maxOf(raw, 1f) else raw
     }
 
-    /** The pace as a fraction of the goal, from 0 to 1. */
-    val paceProgress: Float get() = if (goalMl > 0) (paceMl.toFloat() / goalMl).coerceIn(0f, 1f) else 0f
+    /** How far behind the pace target, in whole display units, matching the numbers shown. */
+    val behindPaceAmount: Int?
+        get() = paceTargetMl?.let { unit.fromMl(it) - unit.fromMl(totalMl) }
 
     /** True if adding [ml] takes the total from under the goal to at or over it. */
     fun reachesGoalWith(ml: Int): Boolean = !goalMet && unit.isGoalMet(totalMl + ml, goalMl)
@@ -55,6 +56,14 @@ class TodayViewModel(
 
     private val today = MutableStateFlow(LocalDate.now())
 
+    // The pace target rises minute by minute, so re-check on each minute boundary while visible.
+    private val minuteTicks: Flow<LocalTime> = flow {
+        while (true) {
+            emit(LocalTime.now())
+            delay(60_000 - System.currentTimeMillis() % 60_000)
+        }
+    }
+
     // flatMapLatest swaps to the new day's query whenever `today` changes.
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TodayUiState> = combine(
@@ -62,9 +71,10 @@ class TodayViewModel(
         settingsRepository.dailyGoalMl,
         settingsRepository.unit,
         settingsRepository.reminderSettings,
-        minuteTicks(),
-    ) { drinks, goalMl, unit, day, now ->
-        TodayUiState(drinks, goalMl, unit, paceMl = Pace.target(now, day.wakeTime, day.bedTime, goalMl))
+        minuteTicks,
+    ) { drinks, goalMl, unit, reminders, now ->
+        val state = TodayUiState(drinks, goalMl, unit)
+        state.copy(paceTargetMl = paceTargetIfBehind(now, reminders, goalMl, state.totalMl, unit))
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
 
@@ -78,15 +88,6 @@ class TodayViewModel(
 
     fun removeDrink(id: Long) {
         viewModelScope.launch { drinkRepository.remove(id) }
-    }
-
-    /** The current time, once now and then at the start of every minute, so the pace keeps moving. */
-    private fun minuteTicks(): Flow<LocalTime> = flow {
-        while (true) {
-            val now = LocalTime.now()
-            emit(now)
-            delay(60_000L - now.second * 1_000L - now.nano / 1_000_000)
-        }
     }
 
     companion object {
