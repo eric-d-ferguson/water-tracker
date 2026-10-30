@@ -14,13 +14,27 @@
     android:padding="6dp"
     tools:ignore="HardcodedText">
 
-    <TextView
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="48 oz"
-        android:textColor="@color/preview_on_surface"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:gravity="bottom"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="48/80"
+            android:textColor="@color/preview_on_surface"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" oz"
+            android:textColor="@color/preview_on_surface_variant"
+            android:textSize="9sp" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="40dp"
@@ -28,6 +42,7 @@
         android:layout_marginTop="3dp"
         android:layout_weight="1"
         android:background="@drawable/preview_glass"
+        android:clipToOutline="true"
         android:orientation="vertical">
 
         <FrameLayout
@@ -39,7 +54,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="0.6"
-            android:background="@drawable/preview_water" />
+            android:background="@color/preview_primary" />
     </LinearLayout>
 
     <LinearLayout

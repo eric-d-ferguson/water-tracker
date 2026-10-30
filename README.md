@@ -53,7 +53,7 @@ Behind the scenes there's one `AlarmManager` alarm at a time, set for the next c
 Long-press your home screen, tap **Widgets**, and find **Water Tracker**. There are two:
 
 - **Progress bar (4×1):** today's total and a progress bar, with the buttons to the right.
-- **Water glass (1×2):** a glass that fills from the bottom, with the buttons stacked underneath. Stretch it taller for a bigger glass.
+- **Water glass (1×2):** today's total as a fraction ("48/80 oz") above a glass that fills from the bottom, with the buttons underneath. The glass takes whatever height is left, so nothing gets cut off at large text sizes. Very short widgets use smaller buttons, side by side when they fit. Stretch it taller for a bigger glass.
 
 Both use the same two button amounts, which you change in **Settings → Widget**.
 

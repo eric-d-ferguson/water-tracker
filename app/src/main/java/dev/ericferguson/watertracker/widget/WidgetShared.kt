@@ -30,11 +30,17 @@ import dev.ericferguson.watertracker.data.WidgetButtons
 import dev.ericferguson.watertracker.reminders.paceTargetIfBehind
 import dev.ericferguson.watertracker.ui.theme.DarkColors
 import dev.ericferguson.watertracker.ui.theme.LightColors
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 /** Everything both widgets show. Amounts are in ml; [unit] says how to show them. */
 internal data class WidgetState(
@@ -69,13 +75,16 @@ internal data class WidgetState(
  * change, and the system refreshes widgets every 30 minutes to catch the new day and move the
  * pace marker along.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal suspend fun GlanceAppWidget.provideWaterContent(
     context: Context,
     content: @Composable (WidgetState) -> Unit,
 ) {
     val app = context.applicationContext as WaterTrackerApp
     val state = combine(
-        app.drinkRepository.drinksOn(LocalDate.now()).map { drinks -> drinks.sumOf { it.amountMl } },
+        // Follow the date, so a session that's still running at midnight resets to the new day.
+        currentDay().flatMapLatest { day -> app.drinkRepository.drinksOn(day) }
+            .map { drinks -> drinks.sumOf { it.amountMl } },
         app.settingsRepository.dailyGoalMl,
         app.settingsRepository.widgetButtons,
         app.settingsRepository.unit,
@@ -110,6 +119,16 @@ internal suspend fun GlanceAppWidget.provideWaterPreview(
 }
 
 private val WidgetColors = ColorProviders(light = LightColors, dark = DarkColors)
+
+/** Today's date, emitted again at each local midnight. */
+private fun currentDay(): Flow<LocalDate> = flow {
+    while (true) {
+        val today = LocalDate.now()
+        emit(today)
+        val nextMidnight = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        delay((nextMidnight - System.currentTimeMillis()).coerceAtLeast(1_000))
+    }
+}
 
 /** A pill-shaped quick-add button that logs [ml]; the caller sets its size with [modifier]. */
 @Composable
