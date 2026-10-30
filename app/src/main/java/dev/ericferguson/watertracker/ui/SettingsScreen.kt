@@ -206,6 +206,26 @@ fun SettingsContent(
             )
             HorizontalDivider()
 
+            SectionHeader("Your day")
+            ListItem(
+                headlineContent = { Text("Wake up") },
+                supportingContent = { Text(timeFormatter.format(reminders.wakeTime)) },
+                modifier = Modifier.clickable { showWakeDialog = true },
+            )
+            ListItem(
+                headlineContent = { Text("Bedtime") },
+                supportingContent = { Text(timeFormatter.format(reminders.bedTime)) },
+                modifier = Modifier.clickable { showBedDialog = true },
+            )
+            Text(
+                text = "Your pace climbs from 0 at wake-up to your full goal an hour before bedtime. When you're " +
+                    "10% of your goal or more behind, Today and the Progress bar widget mark where you should be.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            HorizontalDivider()
+
             SectionHeader("Reminders")
             ListItem(
                 headlineContent = { Text("Pace reminders") },
@@ -220,16 +240,6 @@ fun SettingsContent(
             if (showNotificationWarning) {
                 NotificationWarning(onOpenNotificationSettings)
             }
-            ListItem(
-                headlineContent = { Text("Wake up") },
-                supportingContent = { Text(timeFormatter.format(reminders.wakeTime)) },
-                modifier = Modifier.clickable { showWakeDialog = true },
-            )
-            ListItem(
-                headlineContent = { Text("Bedtime") },
-                supportingContent = { Text(timeFormatter.format(reminders.bedTime)) },
-                modifier = Modifier.clickable { showBedDialog = true },
-            )
             Text(
                 text = reminderExplanation(state),
                 style = MaterialTheme.typography.bodySmall,
@@ -334,8 +344,8 @@ fun SettingsContent(
 private fun reminderExplanation(state: SettingsUiState): String {
     val checks = state.checkTimes.joinToString { timeFormatter.format(it) }
     return "Checks at $checks. You'll get a reminder if you're 10% of your goal " +
-        "(${state.unit.format(Pace.behindThreshold(state.goalMl))}) or more behind pace. The pace aims for your full goal " +
-        "an hour before bedtime, and reminders stop once you reach it."
+        "(${state.unit.format(Pace.behindThreshold(state.goalMl))}) or more behind pace, and reminders stop once you " +
+        "reach your goal."
 }
 
 @Composable
