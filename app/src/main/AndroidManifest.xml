@@ -46,6 +46,19 @@
                 android:resource="@xml/glass_widget_info" />
         </receiver>
 
+        <!-- The midnight widget refresh arrives by explicit intent; these actions also refresh and
+             reschedule it, since they clear the alarm or can change the date. -->
+        <receiver
+            android:name=".widget.MidnightRefreshReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Pace-check alarms arrive by explicit intent; these actions trigger a reschedule. -->
         <receiver
             android:name=".reminders.ReminderReceiver"

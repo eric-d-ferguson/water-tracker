@@ -9,6 +9,7 @@ import dev.ericferguson.watertracker.data.WaterDatabase
 import dev.ericferguson.watertracker.reminders.ReminderManager
 import dev.ericferguson.watertracker.widget.launchWidgetUpdates
 import dev.ericferguson.watertracker.widget.publishWidgetPreviewsIfNeeded
+import dev.ericferguson.watertracker.widget.scheduleMidnightRefresh
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,8 @@ class WaterTrackerApp : Application() {
         // Force-stopping the app clears its alarms, so make sure one is set whenever the app starts.
         appScope.launch { reminderManager.reschedule() }
         appScope.launchWidgetUpdates(this, database, settingsRepository)
+        // Same for the widgets' midnight refresh.
+        scheduleMidnightRefresh(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             // Previews show your unit, so republish when it changes (and once per app version).
             appScope.launch {

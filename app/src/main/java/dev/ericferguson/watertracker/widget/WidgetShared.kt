@@ -72,8 +72,8 @@ internal data class WidgetState(
  * Glance keeps a session running for a short while after a widget is shown or tapped. During a
  * session, updates recompose the existing content rather than calling provideGlance again, so
  * the content collects live data. Outside a session, WidgetUpdater starts a new one on every
- * change, and the system refreshes widgets every 30 minutes to catch the new day and move the
- * pace marker along.
+ * change, MidnightRefreshReceiver starts one for the new day, and the system refreshes widgets
+ * every 30 minutes, which moves the pace marker along.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal suspend fun GlanceAppWidget.provideWaterContent(

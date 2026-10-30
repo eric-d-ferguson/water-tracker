@@ -39,7 +39,7 @@ Set your wake-up time and bedtime under **Your day** in Settings (the gear icon 
 - **Checks** happen every 2 hours after wake-up, and none at or after bedtime. For 7 AM–10 PM that's 9, 11, 1, 3, 5, 7 and 9.
 - **You get a reminder** only if you're behind pace by **at least 10% of your goal** (8 oz for an 80 oz goal). A new reminder replaces an unread one.
 - **Reminders stop for the day** once you reach your goal.
-- **The Today screen and the Progress bar widget use the same rule** (`paceTargetIfBehind` in `Pace.kt`): when you're at least 10% behind, a marker on the ring or bar shows where you should be. It works even with reminders turned off, using your wake-up and bedtime. Today updates every minute; the widget updates at least every 30 minutes.
+- **The Today screen and the Progress bar widget use the same rule** (`paceTargetIfBehind` in `Pace.kt`): when you're at least 10% behind, a marker on the ring or bar shows where you should be. It works even with reminders turned off, using your wake-up and bedtime. Today updates every minute; the widget updates about every 30 minutes.
 
 Behind the scenes there's one `AlarmManager` alarm at a time, set for the next check. When it fires, `ReminderReceiver` checks your pace, notifies you if needed, and sets the next alarm. The alarm is also re-set after a reboot, an app update, a clock or time-zone change, and every time the app starts.
 
@@ -59,7 +59,7 @@ Both use the same two button amounts, which you change in **Settings → Widget*
 
 **Previews in the widget picker.** Each widget has a static preview layout with sample numbers (`res/layout/widget_preview_*.xml`), so the picker shows what the widget looks like instead of the app icon. On Android 15+, the app also publishes generated previews using your own goal, unit and buttons (`WidgetPreviews.kt`). It does this once per app version and whenever you switch units, because Android rate-limits it. Launchers don't always pick up a newly published preview until that widget has been placed at least once, which is why the static fallback exists.
 
-The widgets update as soon as you log a drink from the widget or the app. It resets for a new day at the next system refresh, which happens every 30 minutes, or sooner if you open the app.
+The widgets update as soon as you log a drink from the widget or the app. They reset for a new day just after midnight: an alarm at 12:01 AM refreshes them (`MidnightRefreshReceiver`), since Android's own 30-minute widget refresh can be held back for hours overnight.
 
 ## Tech stack
 
@@ -103,7 +103,8 @@ app/src/main/java/dev/ericferguson/watertracker/
 │   ├── GlassWidget.kt       1x2 "Water glass" widget, laid out from its actual size
 │   ├── WidgetPreviews.kt    Publishes generated widget-picker previews (Android 15+)
 │   ├── AddDrinkAction.kt    Logs a drink when a widget button is tapped
-│   └── WidgetUpdater.kt     Refreshes both widgets when drinks or settings change
+│   ├── WidgetUpdater.kt     Refreshes both widgets when drinks or settings change
+│   └── MidnightRefresh.kt   Alarm that refreshes both widgets just after midnight
 └── ui/
     ├── AppRoot.kt           Bottom navigation between the Today and History tabs
     ├── TodayViewModel.kt    Combines today's drinks with the goal into a single StateFlow<TodayUiState>
@@ -244,6 +245,7 @@ Unit tests are in `app/src/test`:
 - `HistoryUiStateTest` checks the average (which leaves out today and days with nothing logged) and the goal-met count.
 - `PaceTest` checks the pace target, the 10% threshold, and staying quiet outside waking hours or after reaching the goal.
 - `ReminderScheduleTest` checks the check times, the next check across midnight, and waking-hours validation.
+- `MidnightRefreshTest` checks the widgets' midnight refresh time, including daylight-saving days.
 
 ### Testing reminders
 
